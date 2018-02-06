@@ -9,13 +9,13 @@ Classification for an anomaly detection objective. This implementation use the l
 The project is released under the GNU Affero GPL v3.0 License, which gives you 
 the following rights in summary:
 
-|**Permissions**  |**Limitations**|**Conditions**                 |
-|---------------- |-------------- |------------------------------ |
-|*Commercial use* |*Liability*    |*License and copyright notice* |
-|*Modification*   |*Warranty*     |*State changes*                |
-|*Distribution*   |               |*Disclose source*              |
-|*Patent use*     |               |*Network use is distribution*  |
-|*Private use*    |               |*Same license*                 |
+|**Permissions**       |**Limitations**    |**Conditions**                                      |
+|--------------------- |------------------ |--------------------------------------------------- |
+|:+1: *Commercial use* |:x: *Liability*    |:information_source: *License and copyright notice* |
+|:+1: *Modification*   |:x: *Warranty*     |:information_source: *State changes*                |
+|:+1: *Distribution*   |                   |:information_source: *Disclose source*              |
+|:+1: *Patent use*     |                   |:information_source: *Network use is distribution*  |
+|:+1: *Private use*    |                   |:information_source: *Same license*                 |
 
 
 ## Contributing guidelines
