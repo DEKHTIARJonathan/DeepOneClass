@@ -97,6 +97,11 @@ ENV/
 # mkdocs documentation
 /site
 
-# mypy
+# intelliJ
 .mypy_cache/
 .idea/
+
+# Model Directory
+checkpoints/
+logs/
+samples/
