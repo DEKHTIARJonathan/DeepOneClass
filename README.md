@@ -66,3 +66,43 @@ pip install -r requirements.txt
 pip install lib_bin\scikit_image-0.13.1-cp36-cp36m-win_amd64.whl # This librabry must be pre-compiled
 pip install -r requirements.txt
 ```
+
+
+
+## Launching the Unit Tests
+
+
+```shell
+########################################################
+# ============= Activate the virtualenv  ============= #
+########################################################
+
+# Linux:
+source venv/bin/activate
+
+# Windows:
+venv\Scripts\activate.bat
+
+########################################################
+# =============== Launching the tests  =============== #
+########################################################
+
+# Linux:
+python tests/test_model.py
+
+# Windows:
+python tests\test_model.py
+```
+
+This should give you a similar output:
+```
+###########################
+DEBUG:tensorflow:OneClassCNN:output => Shape: (64, 1, 1, 1) - Mean: 5.008926e-01 - Std: 0.002996 - Min: 0.494600 - Max: 0.507075
+DEBUG:tensorflow:OneClassCNN:logits => Shape: (64, 1, 1, 1) - Mean: 3.570643e-03 - Std: 0.011985 - Min: -0.021600 - Max: 0.028301
+
+----------------------------------------------------------------------
+Ran 3 tests in 6.736s
+
+OK
+```
+
