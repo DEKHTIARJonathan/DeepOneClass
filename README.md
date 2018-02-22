@@ -93,11 +93,11 @@ python unittests.py
 This should give you a similar output:
 ```
 ###########################
-DEBUG:tensorflow:OneClassCNN:output => Shape: (64, 1, 1, 1) - Mean: 5.008926e-01 - Std: 0.002996 - Min: 0.494600 - Max: 0.507075
-DEBUG:tensorflow:OneClassCNN:logits => Shape: (64, 1, 1, 1) - Mean: 3.570643e-03 - Std: 0.011985 - Min: -0.021600 - Max: 0.028301
+DEBUG:tensorflow:OneClassCNN:output => Shape: (64, 16, 16, 256) - Mean: 5.008926e-01 - Std: 0.002996 - Min: 0.494600 - Max: 0.507075
+DEBUG:tensorflow:OneClassCNN:logits => Shape: (64, 16, 16, 256) - Mean: 3.570643e-03 - Std: 0.011985 - Min: -0.021600 - Max: 0.028301
 
 ----------------------------------------------------------------------
-Ran 3 tests in 6.736s
+Ran 3 tests in 5.934s
 
 OK
 ```

@@ -54,8 +54,6 @@ class OneClassCNN(object):
 
         tl.layers.initialize_global_variables(self.sess)
 
-
-
         ################################################################################################################
         ################################################################################################################
         ################################################################################################################
@@ -145,30 +143,11 @@ class OneClassCNN(object):
                     batch_norm_init = normal_initializer,
                     is_train        = is_train,
                     use_batchnorm   = True,
-                    activation_fn   = "PReLU"
+                    activation_fn   = "sigmoid"
                 )
 
                 tf.logging.debug("H4 Layer Shape: %s " % layer.outputs.shape)
                 ### Output Shape: [None, 16, 16, 256]
-
-            with tf.variable_scope('h5', reuse=reuse):
-                tl.layers.set_name_reuse(reuse)
-
-                layer, _ = conv_module(
-                    input           = layer,
-                    n_out_channel   = 1,
-                    filter_size     = (16, 16),
-                    strides         = (2, 2),
-                    padding         = "VALID",
-                    conv_init       = xavier_initilizer,
-                    batch_norm_init = normal_initializer,
-                    is_train        = is_train,
-                    use_batchnorm   = True,
-                    activation_fn   = "sigmoid"
-                )
-
-                tf.logging.debug("H5 Layer Shape: %s " % layer.outputs.shape)
-                ### Output Shape: [None, 1, 1, 1]
 
                 logits = _
 

@@ -64,7 +64,7 @@ class OneClassCNNTest(unittest.TestCase):
 
 
     def test_shape_last_conv_layer_logits(self):
-        assert (self.model_output.shape == (64, 1, 1, 1))
+        assert (self.model_output.shape == (64, 16, 16, 256))
 
 
     def test_min_output(self):
@@ -73,7 +73,6 @@ class OneClassCNNTest(unittest.TestCase):
 
     def test_max_output(self):
         assert (self.model_output.max() <= 1)
-
 
 
 if __name__ == '__main__':
