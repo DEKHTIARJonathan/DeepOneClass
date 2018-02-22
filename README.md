@@ -87,11 +87,7 @@ venv\Scripts\activate.bat
 # =============== Launching the tests  =============== #
 ########################################################
 
-# Linux:
-python tests/test_model.py
-
-# Windows:
-python tests\test_model.py
+python unittests.py
 ```
 
 This should give you a similar output:
