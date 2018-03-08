@@ -2,7 +2,7 @@ import os
 import tensorflow as tf
 import tensorlayer as tl
 
-from .custom_layers import conv_module
+from custom_layers import conv_module
 
 class OneClassCNN(object):
 
