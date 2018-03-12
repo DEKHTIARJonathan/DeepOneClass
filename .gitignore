@@ -1,6 +1,6 @@
 # Data folder
-data
-!data/.gitkeep
+/data
+!/data/.gitkeep
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -110,4 +110,5 @@ ENV/
 checkpoints/
 logs/
 samples/
+
 source_files/weights/vgg16_weights.npz
