@@ -2,7 +2,7 @@ import os
 import tensorflow as tf
 import tensorlayer as tl
 
-from custom_layers import conv_module
+from source_files.vgg_network import VGG_Network
 
 class OneClassCNN(object):
 
@@ -38,119 +38,36 @@ class OneClassCNN(object):
         with tf.name_scope("placeholders"):
             self.input_plh         = tf.placeholder(tf.float32, shape = [None, 256, 256, 1], name="input_plh")
 
+        with tf.name_scope("image_processing"):
+            self.resized_input = tf.image.resize_images(
+                images = self.input_plh,
+                size   = (224, 224),
+                method = tf.image.ResizeMethod.BILINEAR
+            )
+
+            self.resized_input = tf.image.grayscale_to_rgb(images=self.resized_input)
+
         #############################################
         ##### ======== Model Creation ========= #####
         #############################################
 
-        self.training_model, self.training_logits = self._get_model(self.input_plh)
+        self.vgg_model = VGG_Network(include_FC_head=False, flatten_output=False)
 
-        self.eval_model,     self.eval_logits     = self._get_model(self.input_plh, is_train=False, reuse=True)
+        self.vgg_net, _ = self.vgg_model(
+            inputs = self.resized_input,
+            reuse  = False
+        )
+
+        # print("VGG Output Size:", self.vgg_net.outputs.get_shape()) (None, 7, 7, 512)
 
         #############################################
         ##### ====== Model Initialization ===== #####
         #############################################
 
-        self.training_model.print_params(False)
+        self.vgg_net.print_params(False)
 
         tl.layers.initialize_global_variables(self.sess)
 
-        ################################################################################################################
-        ################################################################################################################
-        ################################################################################################################
-        ################################################################################################################
-
-
-    def _get_model(self, inputs, is_train=True, reuse=False):
-
-        xavier_initilizer  = tf.contrib.layers.xavier_initializer(uniform=True)
-        normal_initializer = tf.random_normal_initializer(mean=1., stddev=0.02)
-
-        with tf.variable_scope("cnn_model", reuse=reuse):
-            tl.layers.set_name_reuse(reuse)
-
-            # Input Layers
-            layer = tl.layers.InputLayer(inputs, name='input')
-
-            ### Input Shape: [None, 256, 256, 1]
-
-            with tf.variable_scope('h1', reuse=reuse):
-                tl.layers.set_name_reuse(reuse)
-
-                layer, _ = conv_module(
-                    input           = layer,
-                    n_out_channel   = 32,
-                    filter_size     = (5, 5),
-                    strides         = (2, 2),
-                    padding         = "SAME",
-                    conv_init       = xavier_initilizer,
-                    batch_norm_init = normal_initializer,
-                    is_train        = is_train,
-                    use_batchnorm   = True,
-                    activation_fn   = "PReLU"
-                )
-
-                tf.logging.debug("H1 Layer Shape: %s " % layer.outputs.shape)
-                ### Output Shape: [None, 128, 128, 32]
-
-            with tf.variable_scope('h2', reuse=reuse):
-                tl.layers.set_name_reuse(reuse)
-
-                layer, _ = conv_module(
-                    input           = layer,
-                    n_out_channel   = 64,
-                    filter_size     = (5, 5),
-                    strides         = (2, 2),
-                    padding         = "SAME",
-                    conv_init       = xavier_initilizer,
-                    batch_norm_init = normal_initializer,
-                    is_train        = is_train,
-                    use_batchnorm   = True,
-                    activation_fn   = "PReLU"
-                )
-
-                tf.logging.debug("H2 Layer Shape: %s " % layer.outputs.shape)
-                ### Output Shape: [None, 64, 64, 64]
-
-            with tf.variable_scope('h3', reuse=reuse):
-                tl.layers.set_name_reuse(reuse)
-
-                layer, _ = conv_module(
-                    input           = layer,
-                    n_out_channel   = 128,
-                    filter_size     = (5, 5),
-                    strides         = (2, 2),
-                    padding         = "SAME",
-                    conv_init       = xavier_initilizer,
-                    batch_norm_init = normal_initializer,
-                    is_train        = is_train,
-                    use_batchnorm   = True,
-                    activation_fn   = "PReLU"
-                )
-
-                tf.logging.debug("H3 Layer Shape: %s " % layer.outputs.shape)
-                ### Output Shape: [None, 32, 32, 128]
-
-            with tf.variable_scope('h4', reuse=reuse):
-                tl.layers.set_name_reuse(reuse)
-
-                layer, _ = conv_module(
-                    input           = layer,
-                    n_out_channel   = 256,
-                    filter_size     = (5, 5),
-                    strides         = (2, 2),
-                    padding         = "SAME",
-                    conv_init       = xavier_initilizer,
-                    batch_norm_init = normal_initializer,
-                    is_train        = is_train,
-                    use_batchnorm   = True,
-                    activation_fn   = "sigmoid"
-                )
-
-                tf.logging.debug("H4 Layer Shape: %s " % layer.outputs.shape)
-                ### Output Shape: [None, 16, 16, 256]
-
-                logits = _
-
-        return layer, logits
+        self.vgg_model.load_pretrained(self.sess) # Load pretrained model
 
 

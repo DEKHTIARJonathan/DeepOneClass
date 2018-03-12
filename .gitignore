@@ -110,3 +110,4 @@ ENV/
 checkpoints/
 logs/
 samples/
+source_files/weights/vgg16_weights.npz

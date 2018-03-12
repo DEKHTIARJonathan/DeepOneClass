@@ -1,7 +1,12 @@
+import os
 import sys
 import unittest
 
+from skimage.transform import resize
+from imageio import imread
+
 from unittest.util import strclass
+
 
 parent_dir = "\\".join(sys.path[0].split("\\")[:-1])
 sys.path.append(parent_dir)
@@ -10,6 +15,9 @@ import numpy as np
 import tensorflow as tf
 
 from source_files.model import OneClassCNN
+
+def rgb2gray(rgb):
+    return np.dot(rgb[...,:3], [0.299, 0.587, 0.114])
 
 class OneClassCNNTest(unittest.TestCase):
 
@@ -31,15 +39,23 @@ class OneClassCNNTest(unittest.TestCase):
         with tf.Session() as sess:
             model = OneClassCNN(sess)
 
-            random_data  = np.random.random([64, 256, 256, 1])
+            #random_data  = np.random.random([64, 256, 256, 1])
+            #random_data = np.random.random([4, 256, 256, 1])
 
-            cls.model_output, cls.model_logits = sess.run(
-                [
-                    model.eval_model.outputs,
-                    model.eval_logits
-                ],
-                feed_dict = {model.input_plh: random_data}
-            )
+            test_image_path = 'data/laska.jpg'
+
+            if os.getcwd().split(os.sep)[-1] != "tests":
+                test_image_path = 'tests/' + test_image_path
+
+            img_raw = imread(test_image_path)
+            img_resized = resize(img_raw, (256, 256), mode='reflect') * 255
+
+            img_prepared = rgb2gray(img_resized) # Shape: (256, 256)
+
+            img_prepared = np.expand_dims(img_prepared, axis=2) # Shape: (256, 256, 1)
+            img_prepared = np.expand_dims(img_prepared, axis=0) # Shape: (1, 256, 256, 1)
+
+            cls.vgg_out = sess.run(model.vgg_net.outputs, feed_dict = {model.input_plh: img_prepared})
 
     @classmethod
     def tearDownClass(cls):
@@ -47,32 +63,24 @@ class OneClassCNNTest(unittest.TestCase):
             print("\n\n###########################")
 
         tf.logging.debug("OneClassCNN:output => Shape: %s - Mean: %e - Std: %f - Min: %f - Max: %f" % (
-            cls.model_output.shape,
-            cls.model_output.mean(),
-            cls.model_output.std(),
-            cls.model_output.min(),
-            cls.model_output.max()
+            cls.vgg_out.shape,
+            cls.vgg_out.mean(),
+            cls.vgg_out.std(),
+            cls.vgg_out.min(),
+            cls.vgg_out.max()
         ))
-
-        tf.logging.debug("OneClassCNN:logits => Shape: %s - Mean: %e - Std: %f - Min: %f - Max: %f" % (
-            cls.model_logits.shape,
-            cls.model_logits.mean(),
-            cls.model_logits.std(),
-            cls.model_logits.min(),
-            cls.model_logits.max()
-        ))
-
 
     def test_shape_last_conv_layer_logits(self):
-        assert (self.model_output.shape == (64, 16, 16, 256))
+        self.assertEqual(self.vgg_out.shape, (1, 7, 7, 512))
 
 
     def test_min_output(self):
-        assert (self.model_output.min() >= 0)
+        self.assertGreaterEqual(self.vgg_out.min(), 0)
 
 
     def test_max_output(self):
-        assert (self.model_output.max() <= 1)
+        # Test that the model is correctly loaded. Input is fixed, output should be fixed.
+        self.assertAlmostEqual (self.vgg_out.max(), 542.8046875)
 
 
 if __name__ == '__main__':
