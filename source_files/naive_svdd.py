@@ -4,6 +4,7 @@ Naive implementation of the primal form of the SVDD with an explicit feature map
 import tensorflow as tf
 import tensorlayer as tl
 import time
+import numpy as np
 
 class SvddLayer(tl.layers.Layer):
     def __init__(self, layer=None, name='svdd_layer', c=1, map="linear", rffm_dims=None, rffm_stddev=10.0, freeze_before=False):
@@ -57,7 +58,7 @@ class SvddLayer(tl.layers.Layer):
 
         self.train_op = tf.train.AdamOptimizer(0.1).minimize(self.cost, var_list=var_list)
 
-    def train(self, sess, x, X_train, n_epoch=5000, batch_size=100, print_freq=100):
+    def train(self, sess, x, X_train, n_epoch=5000, batch_size=100, print_freq=1):
 
         print("     [*] %s start training" % self.name)
         print("     batch_size: %d" % batch_size)
@@ -76,7 +77,30 @@ class SvddLayer(tl.layers.Layer):
 
             if epoch + 1 == 1 or (epoch + 1) % print_freq == 0:
                 print("Epoch %d of %d took %fs" % (epoch + 1, n_epoch, time.time() - start_time))
-                print("   train loss: %f" % (train_loss / n_batch))
+                if n_batch > 0:
+                    print("   train loss: %f" % (train_loss / n_batch))
+
+    def predict(self, sess, x, X_predict, batch_size=100):
+        print("     [*] %s start predict" % self.name)
+        print("     batch_size: %d" % batch_size)
+
+        predict_loss = 0
+        predict_y = np.array([])
+
+        for X_predict_a, _ in tl.iterate.minibatches(X_predict, X_predict, batch_size, shuffle=False):
+            feed_dict = {x: X_predict_a}
+            y, err = sess.run([self.outputs, self.cost], feed_dict=feed_dict)
+            predict_y = np.concatenate((predict_y, y), axis=0)
+            predict_loss += err
+
+
+        return predict_y, predict_loss
+
+
+
+
+
+
 
 if __name__ == "__main__":
     import numpy as np
