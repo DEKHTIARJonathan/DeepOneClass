@@ -71,7 +71,7 @@ class SvddLayer(tl.layers.Layer):
 
             for X_train_a, _ in tl.iterate.minibatches(X_train, X_train, batch_size, shuffle=True):
                 feed_dict = {x: X_train_a}
-                _, err = sess.run([self.train_op, self.cost], feed_dict=feed_dict)
+                _, err, r = sess.run([self.train_op, self.cost, self._radius], feed_dict=feed_dict)
                 train_loss += err
                 n_batch += 1
 
@@ -79,6 +79,7 @@ class SvddLayer(tl.layers.Layer):
                 print("Epoch %d of %d took %fs" % (epoch + 1, n_epoch, time.time() - start_time))
                 if n_batch > 0:
                     print("   train loss: %f" % (train_loss / n_batch))
+                    print("   radius: %f" % r)
 
     def predict(self, sess, x, X_predict, batch_size=100):
         print("     [*] %s start predict" % self.name)
@@ -92,7 +93,6 @@ class SvddLayer(tl.layers.Layer):
             y, err = sess.run([self.outputs, self.cost], feed_dict=feed_dict)
             predict_y = np.concatenate((predict_y, y), axis=0)
             predict_loss += err
-
 
         return predict_y, predict_loss
 

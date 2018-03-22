@@ -13,10 +13,11 @@ dataset_number  = 6
 target_w        = 224
 input_shape     = [None, target_w, target_w, 3]
 batch_size      = 10
-n_epoch         = 20
+n_epoch         = 25
 kernel          = "linear"
 rffm_dims       = 200
 rffm_stddev     = 25
+c               = 1
 
 
 train_images, test_images, test_images_y = get_train_val_imgs(dataset_number, '../data', target_w)
@@ -26,17 +27,19 @@ input_plh = tf.placeholder(tf.float32, shape=input_shape, name="X")
 
 with tf.Session() as sess:
 
-    model = VGG_Network(include_FC_head=True)
+    model = VGG_Network(include_FC_head=False)
     network, _ = model(input_plh)
 
-    model.load_pretrained(sess)
-
-
-    layer = SvddLayer(network, c=10, map=kernel, rffm_dims=rffm_dims, rffm_stddev=rffm_stddev, freeze_before=True)
+    layer = SvddLayer(network, c=c, map=kernel, rffm_dims=rffm_dims, rffm_stddev=rffm_stddev, freeze_before=True)
 
     sess.run(tf.global_variables_initializer())
+    model.load_pretrained(sess)
 
-    layer.train(sess, input_plh, train_images, n_epoch=n_epoch, batch_size=batch_size)
+    try:
+        layer.train(sess, input_plh, train_images, n_epoch=n_epoch, batch_size=batch_size)
+    except KeyboardInterrupt:
+        pass
+
     eval_y, _ = layer.predict(sess, input_plh, test_images, batch_size=batch_size)
 
     n = len(test_images_y)
