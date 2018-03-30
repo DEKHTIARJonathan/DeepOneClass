@@ -112,3 +112,4 @@ logs/
 samples/
 
 source_files/weights/vgg16_weights.npz
+source_files/weights/inception_v3.ckpt
