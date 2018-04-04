@@ -27,7 +27,7 @@ def transform(image, target_w=64, crop_size=64, is_crop=False):
         cropped_image = center_crop(image, crop_size, resize_w=target_w)
     else:
         cropped_image = squash_image(image, target_h=target_w, target_w=target_w)
-    return np.array(cropped_image)/127.5 - 1.
+    return np.array(cropped_image) - 127.5
 
 def get_image(image_path, target_w=64, is_grayscale = True, crop_size=64, is_crop=False):
     image = imread(image_path, is_grayscale)

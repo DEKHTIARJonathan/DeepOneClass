@@ -58,24 +58,28 @@ class SvddLayer(tl.layers.Layer):
 
         self.train_op = tf.train.AdamOptimizer(0.1).minimize(self.cost, var_list=var_list)
 
-    def train(self, sess, x, X_train, n_epoch=50, batch_size=10, print_freq=1):
+    def train(self, sess, x, train_dataset, n_epoch=50, batch_size=10, print_freq=1):
 
         print("     [*] %s start training" % self.name)
         print("     batch_size: %d" % batch_size)
         print("     n_epoch: %d" % n_epoch)
 
+        train_it = train_dataset.batch(batch_size).make_initializable_iterator()
+        next = train_it.get_next()
         for epoch in range(n_epoch):
             start_time = time.time()
             n_batch = 0
             train_loss = 0
+            sess.run(train_it.initializer)
 
-            for X_train_a, _ in tl.iterate.minibatches(X_train, np.zeros([X_train.shape[0]]), batch_size, shuffle=True):
-
-                feed_dict = {x: X_train_a}
-                err, r, _ = sess.run([self.cost, self._radius, self.train_op], feed_dict=feed_dict)
-                train_loss += err
-                n_batch += 1
-
+            while True:
+                try:
+                    feed_dict = { x: sess.run(next) }
+                    err, r, _ = sess.run([self.cost, self._radius, self.train_op], feed_dict=feed_dict)
+                    train_loss += err
+                    n_batch += 1
+                except tf.errors.OutOfRangeError:
+                    break
 
             if epoch + 1 == 1 or (epoch + 1) % print_freq == 0:
                 print("Epoch %d of %d took %fs" % (epoch + 1, n_epoch, time.time() - start_time))
@@ -83,22 +87,26 @@ class SvddLayer(tl.layers.Layer):
                     print("   train loss: %f" % (train_loss / n_batch))
                     print("   radius: %f" % r)
 
-    def predict(self, sess, x, X_predict, batch_size=10):
+    def predict(self, sess, x, predict_dataset, batch_size=10):
         print("     [*] %s start predict" % self.name)
         print("     batch_size: %d" % batch_size)
 
         predict_loss = 0
         predict_y = np.array([])
 
-        batch_size = np.min(batch_size, X_predict.shape[0])
+        predict_it = predict_dataset.batch(batch_size).make_one_shot_iterator()
+        next = predict_it.get_next()
 
-        for X_predict_a, _ in tl.iterate.minibatches(X_predict, np.zeros([X_predict.shape[0]]), batch_size, shuffle=False):
-            feed_dict = {x: X_predict_a}
-            y, err = sess.run([self.outputs, self.cost], feed_dict=feed_dict)
-            predict_y = np.concatenate((predict_y, y), axis=0)
-            predict_loss += err
+        while True:
+            try:
+                feed_dict = { x: sess.run(next) }
+                y, err = sess.run([self.outputs, self.cost], feed_dict=feed_dict)
+                predict_y = np.concatenate((predict_y, y), axis=0)
+                predict_loss += err
+            except tf.errors.OutOfRangeError:
+                return predict_y, predict_loss
 
-        return predict_y, predict_loss
+
 
 
 
