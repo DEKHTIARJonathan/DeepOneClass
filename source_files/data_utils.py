@@ -1,17 +1,22 @@
 import os
-
+import matplotlib.pyplot as plt
+import numpy as np
 import tensorflow as tf
-
 from functools import partial
 
-# Genrator for filenames as strings
+def center_dataset_values(dataset, min_v=0, max_v=255):
+    return dataset.map(lambda img: img - (max_v - min_v) / 2)
+
+def scale_dataset_values(dataset, max_v=255):
+    return dataset.map(lambda img: img / max_v)
+
 def str_filenames_gen(dir):
+    """Genrator for filenames as strings"""
     for fn in os.listdir(dir):
         yield os.path.join(dir, str(fn))
 
-
-# Image target_w x target_w x 3 as floats 0 - 255
 def load_and_transf_img(filename, target_w):
+    """Image target_w x target_w x 3 as floats 0 - 255"""
     file = tf.read_file(filename)
     img = tf.image.decode_png(
         contents=file,
@@ -25,18 +30,16 @@ def load_and_transf_img(filename, target_w):
     )
     return img
 
-# Dataset of
 def get_dataset(dir, target_w):
     dataset = tf.data.Dataset.from_generator(
         generator=partial(str_filenames_gen, dir),
         output_types=tf.string,
-    )\
-        .map(lambda fn: load_and_transf_img(fn, target_w))
+    )
+    dataset = dataset.map(lambda fn: load_and_transf_img(fn, target_w))
 
     tf.logging.debug(' Created a dataset from directory %s' % dir)
     tf.logging.debug('     Output shapes : %s' % str(dataset.output_shapes))
     tf.logging.debug('     Output types : %s\n' % str(dataset.output_types))
-
 
     return dataset
 
@@ -52,14 +55,19 @@ def get_test_dataset(class_nbr, data_dir, target_w):
         target_w=target_w
     )
 
-def center_dataset_values(dataset, min_v=0, max_v=255):
-    return dataset.map(lambda img: img - (max_v - min_v) / 2)
+def train_input_fn(class_nbr, target_w, batch_size):
+    """Return iterator on train dataset"""
+    dataset = get_train_dataset(class_nbr, "../data/DAGM 2007 - Splitted", target_w)
+    dataset = dataset.batch(batch_size)
+    iterator = dataset.make_one_shot_iterator()
+    return iterator.get_next()
 
-def scale_dataset_values(dataset, max_v=255):
-    return dataset.map(lambda img: img / max_v)
-
-import matplotlib.pyplot as plt
-import numpy as np
+def test_input_fn(class_nbr, target_w, batch_size):
+    """Return iterator on test dataset"""
+    dataset = get_test_dataset(class_nbr, "../data/DAGM 2007 - Splitted", target_w)
+    dataset = dataset.batch(batch_size)
+    iterator = dataset.make_one_shot_iterator()
+    return iterator.get_next()
 
 if __name__ == '__main__':
     sess = tf.Session()
