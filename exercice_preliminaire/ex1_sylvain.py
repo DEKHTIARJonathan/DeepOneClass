@@ -6,6 +6,10 @@ import tensorflow as tf
 def cnn_network(inputs):
     # =============================== GAME RULES ===============================
     # 1. Only 2 Layers should be in the networks, no more, no less !
+    #    => This is means, there should be no:
+    #       ** No activation function/layer
+    #       ** No pooling
+    #       ** Basically nothing else than convolutions.
     #
     # 2. You are only allowed to use convolution layers (No Dense, No Reshape, No Whatever else)
     #
