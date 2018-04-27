@@ -22,7 +22,7 @@ class InceptionV3_Network(object):
         with slim.arg_scope(inception_v3_arg_scope()):
 
             network = tl.layers.SlimNetsLayer(
-                layer = net_in,
+                prev_layer=net_in,
                 slim_layer=inception_v3,
                 slim_args={
                     'num_classes': 1001,
@@ -36,12 +36,21 @@ class InceptionV3_Network(object):
 
             conv_layers = [
                 "InceptionV3/InceptionV3/Conv2d_1a_3x3/Relu",
+                "InceptionV3/InceptionV3/Conv2d_2a_3x3/Relu",
                 "InceptionV3/InceptionV3/Conv2d_2b_3x3/Relu",
                 "InceptionV3/InceptionV3/Conv2d_3b_1x1/Relu",
                 "InceptionV3/InceptionV3/Conv2d_4a_3x3/Relu",
-                "InceptionV3/InceptionV3/Mixed_5d/concat",
-                "InceptionV3/InceptionV3/Mixed_6e/concat",
-                "InceptionV3/InceptionV3/Mixed_7c/concat"
+                "InceptionV3/InceptionV3/Mixed_5b/concat:0",
+                "InceptionV3/InceptionV3/Mixed_5c/concat:0",
+                "InceptionV3/InceptionV3/Mixed_5d/concat:0",
+                "InceptionV3/InceptionV3/Mixed_6a/concat:0",
+                "InceptionV3/InceptionV3/Mixed_6b/concat:0",
+                "InceptionV3/InceptionV3/Mixed_6c/concat:0",
+                "InceptionV3/InceptionV3/Mixed_6d/concat:0",
+                "InceptionV3/InceptionV3/Mixed_6e/concat:0",
+                "InceptionV3/InceptionV3/Mixed_7a/concat:0",
+                "InceptionV3/InceptionV3/Mixed_7b/concat:0",
+                "InceptionV3/InceptionV3/Mixed_7c/concat:0",
             ]
 
             conv_outs = [
@@ -54,7 +63,6 @@ class InceptionV3_Network(object):
             ]
 
             return network, conv_outs
-
 
     def load_pretrained(self, sess, weights_path='weights/inception_v3.ckpt'):
 
@@ -74,6 +82,7 @@ class InceptionV3_Network(object):
 
 ###################
 
+
 if __name__ == '__main__':
 
     tf.logging.set_verbosity(tf.logging.DEBUG)
@@ -82,7 +91,6 @@ if __name__ == '__main__':
 
     inception_model    = InceptionV3_Network()
     network, conv_outs = inception_model(input_plh)
-
 
     with tf.Session() as sess:
         inception_model.load_pretrained(sess)
