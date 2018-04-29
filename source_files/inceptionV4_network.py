@@ -21,7 +21,6 @@ class InceptionV4_Network(object):
         net_in = tl.layers.InputLayer(inputs, name='input_layer')
 
         with slim.arg_scope(inception_v4_arg_scope()):
-
             network = tl.layers.SlimNetsLayer(
                 prev_layer=net_in,
                 slim_layer=inception_v4,
@@ -63,8 +62,8 @@ class InceptionV4_Network(object):
             conv_outs = [
                 tl.layers.get_layers_with_name(
                     self.network,
-                    name      = layer_name,
-                    printable = False
+                    name=layer_name,
+                    printable=False
                 )[0]
                 for layer_name in conv_layers
             ]
@@ -80,7 +79,8 @@ class InceptionV4_Network(object):
 
         if not os.path.isfile(weights_path):
             raise FileNotFoundError(
-                "Please download inception_v4 ckpt from : https://github.com/tensorflow/models/tree/master/research/slim"
+                "Please download inception_v4 ckpt from : "
+                "https://github.com/tensorflow/models/tree/master/research/slim"
             )
 
         self.network.print_params(False)
@@ -89,6 +89,7 @@ class InceptionV4_Network(object):
         saver.restore(sess, weights_path)
 
         tf.logging.info("Finished loading InceptionV4 Net weights ...")
+
 
 ###################
 
@@ -99,7 +100,7 @@ if __name__ == '__main__':
 
     input_plh = tf.placeholder(tf.float32, [None, 299, 299, 3], name='input_placeholder')
 
-    inception_model    = InceptionV4_Network()
+    inception_model = InceptionV4_Network()
     network, conv_outs = inception_model(input_plh)
 
     with tf.Session() as sess:
@@ -112,13 +113,25 @@ if __name__ == '__main__':
         for i, output in enumerate(result):
             print("Result Shape " + str(i + 1) + ":", output.shape)
 
-        def get_names(graph=tf.get_default_graph()):
-            return [t.name for op in graph.get_operations() for t in op.values()]
+        import numpy as np
+        from skimage.transform import resize
+        from imageio import imread
 
-        def get_tensors(graph=tf.get_default_graph()):
-            return [t for op in graph.get_operations() for t in op.values()]
+        test_image_path = 'data/laska.jpg'
 
-        with open("inception_tensors.txt", "w") as f:
-            for t in get_names():
-                if "concat:0" in t:
-                    f.write(t+"\n")
+        img_raw = imread(test_image_path)
+        img_resized = resize(img_raw, (299, 299), mode='reflect') * 255
+
+        net_out_probs = sess.run(network.outputs, feed_dict={input_plh: [img_resized]})[0]
+
+        most_likely_classID = np.argmax(net_out_probs)
+        max_prob = net_out_probs[most_likely_classID]
+
+        # noinspection PyStringFormat
+        print("InceptionV4 Network: Most Likely Class: %d with a probability of: %.5f - Output Shape: %s" % (
+            most_likely_classID,
+            max_prob,
+            net_out_probs.shape
+        ))
+
+        print("Type:", type(most_likely_classID))
