@@ -1,5 +1,5 @@
 import tensorflow as tf
-from data_utils import train_input_fn, test_input_fn
+from data_utils import train_input_fn, test_input_fn, train_input_fn_random
 from vgg_network import VGG_Network
 
 tf.set_random_seed(1)
@@ -23,29 +23,48 @@ def naive_svdd_model_fn(features, labels, mode, params):
     :param params: dict of additional params
     :return: tf.estimator.EstimatorSpec
     """
+    #
+    # with tf.name_scope("VGG"):
+    #     vgg_model = VGG_Network(include_FC_head=False)
+    #     vgg_network, _ = vgg_model(features)
+    #     features_map = vgg_network.outputs
+    #     features_map_size = int(features_map.get_shape()[1])
 
-    with tf.name_scope("VGG"):
-        vgg_model = VGG_Network(include_FC_head=False)
-        vgg_network, _ = vgg_model(features)
-        features_map = vgg_network.outputs
-        features_map_size = int(features_map.get_shape()[1])
+    input_size = params["input_size"]
+    print(tf.shape(features))
 
     with tf.name_scope("SVDD"):
+        # kernel
+        if params["kernel"] == "linear":
+            out_size = input_size
+            mapped_inputs = features
+        elif params["kernel"] in ["rffm", "rbf"]:
+            out_size = params["rffm_dims"] if "rffm_dims" in params else input_size # todo: check not None
+            kernel_mapper = tf.contrib.kernel_methods.RandomFourierFeatureMapper(
+                input_dim=input_size,
+                output_dim=out_size,
+                stddev=params["rffm_stddev"],
+                name="rffm"
+            )
+            mapped_inputs = kernel_mapper.map(features)
+        else:
+            raise ValueError("Map function {} not implemented.".format(params["kernel"]))
+
         # Model variables
         R = tf.Variable(tf.random_normal([], mean=10), dtype=tf.float32, name="Radius")
-        a = tf.Variable(tf.random_normal([features_map_size], mean=5), dtype=tf.float32, name="Center")
+        a = tf.Variable(tf.random_normal([out_size], mean=5), dtype=tf.float32, name="Center")
         frac_err = params["frac_err"]
-        inputs_nbr = params["inputs_nbr"]
+        inputs_nbr = params["inputs_nbr"] # number of data
         C = tf.constant(1.0 / (inputs_nbr * frac_err), dtype=tf.float32)
 
         # Loss
-        constraint = tf.square(R) - tf.square(tf.norm(features_map - a, axis=1))
+        constraint = tf.square(R) - tf.square(tf.norm(mapped_inputs - a, axis=1))
         loss = tf.square(R) - C * tf.reduce_sum(tf.minimum(constraint, 0.0))
         loss = tf.reduce_sum(loss)
 
     # Prediction
     if mode == tf.estimator.ModeKeys.PREDICT:
-        predicted_classes = tf.sign(tf.square(R) - tf.square(tf.norm(features_map - a, axis=1)))
+        predicted_classes = tf.sign(tf.square(R) - tf.square(tf.norm(mapped_inputs - a, axis=1)))
         predictions = {
             'predicted_classes': predicted_classes
         }
@@ -83,17 +102,32 @@ if __name__ == "__main__":
     train_steps     = 1
     model_dir       = "../tmp/estimator_svdd_naive"
 
+    """
     OCClassifier = tf.estimator.Estimator(
         model_fn=naive_svdd_model_fn,
         params={
             "frac_err": 0.1,
-            "inputs_nbr": 100
+            "inputs_nbr": 100,
+            "input_size": 100,
         },
-        model_dir=None#model_dir
+        model_dir=model_dir
+    )"""
+
+    OCClassifier = tf.estimator.Estimator(
+        model_fn=naive_svdd_model_fn,
+        params={
+            "frac_err": 0.1,
+            "inputs_nbr": 100,
+            "input_size": 10,
+            "kernel": "linear",
+            "rffm_dims": 200,
+            "rffm_stddev": 25,
+        },
+        model_dir=model_dir
     )
 
     OCClassifier.train(
-            input_fn=lambda: train_input_fn(6, target_w, batch_size),
+            input_fn=lambda: train_input_fn_random(batch_size),
             steps=train_steps
     )
 

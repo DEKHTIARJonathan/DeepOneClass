@@ -62,6 +62,23 @@ def train_input_fn(class_nbr, target_w, batch_size):
     iterator = dataset.make_one_shot_iterator()
     return iterator.get_next()
 
+def generator_random():
+    for i in range(1000):
+        yield (np.random.rand(10), 1)
+
+def train_input_fn_random(batch_size):
+    """Return iterator on train dataset"""
+    dataset = tf.data.Dataset.from_generator(
+        generator=generator_random,
+        output_types=(tf.float32, tf.float32)
+    )
+    dataset = dataset.batch(batch_size)
+    iterator = dataset.make_one_shot_iterator()
+    next = iterator.get_next()
+    print(tf.shape(next))
+    print(next)
+    return next
+
 def test_input_fn(class_nbr, target_w, batch_size):
     """Return iterator on test dataset"""
     dataset = get_test_dataset(class_nbr, "../data/DAGM 2007 - Splitted", target_w)
