@@ -3,7 +3,7 @@ from data_utils import train_input_fn, test_input_fn, train_input_fn_random
 from vgg_network import VGG_Network
 
 tf.set_random_seed(1)
-tf.logging.set_verbosity("DEBUG")
+tf.logging.set_verbosity("FATAL")
 
 class _LoadPreTrainedWeightsVGG(tf.train.SessionRunHook):
 
@@ -23,6 +23,12 @@ def naive_svdd_model_fn(features, labels, mode, params):
     :param params: dict of additional params
     :return: tf.estimator.EstimatorSpec
     """
+
+    # Few details on inputs
+    # print(tf.shape(features)) # 4 because -> (?, 256, 256, 3)
+    # print(features) # Tensor("IteratorGetNext:0", shape=(?, 256, 256, 3), [...])
+    # print(labels) # None if iterator only returns single image and not a tuple
+
     #
     # with tf.name_scope("VGG"):
     #     vgg_model = VGG_Network(include_FC_head=False)
@@ -30,11 +36,10 @@ def naive_svdd_model_fn(features, labels, mode, params):
     #     features_map = vgg_network.outputs
     #     features_map_size = int(features_map.get_shape()[1])
 
-    input_size = params["input_size"]
-    print(tf.shape(features))
+    shapes = features.get_shape().as_list()
+    input_size = shapes[1]
 
     with tf.name_scope("SVDD"):
-        # kernel
         if params["kernel"] == "linear":
             out_size = input_size
             mapped_inputs = features
@@ -102,17 +107,6 @@ if __name__ == "__main__":
     train_steps     = 1
     model_dir       = "../tmp/estimator_svdd_naive"
 
-    """
-    OCClassifier = tf.estimator.Estimator(
-        model_fn=naive_svdd_model_fn,
-        params={
-            "frac_err": 0.1,
-            "inputs_nbr": 100,
-            "input_size": 100,
-        },
-        model_dir=model_dir
-    )"""
-
     OCClassifier = tf.estimator.Estimator(
         model_fn=naive_svdd_model_fn,
         params={
@@ -126,18 +120,35 @@ if __name__ == "__main__":
         model_dir=model_dir
     )
 
-    OCClassifier.train(
-            input_fn=lambda: train_input_fn_random(batch_size),
-            steps=train_steps
+    # Simulate fake data coming from a flatten layer of a CNN
+    import numpy as np
+    train_input_fn = tf.estimator.inputs.numpy_input_fn(
+        x=np.random.rand(50, 100).astype(np.dtype('float32')),
+        y=None,
+        batch_size=50,
+        num_epochs=train_steps,
+        shuffle=True
+    )
+    test_input_fn = tf.estimator.inputs.numpy_input_fn(
+        x=np.random.rand(50, 100).astype(np.dtype('float32')),
+        y=None,
+        batch_size=50,
+        num_epochs=train_steps,
+        shuffle=True
     )
 
-    """
-    predictions = OCClassifier.predict(
-            input_fn=lambda: test_input_fn(6, target_w, batch_size))
+    print("################## TRAIN ###################")
+    OCClassifier.train(
+        #input_fn=lambda: train_input_fn(6, target_w, batch_size),
+        input_fn=train_input_fn,
+        steps=train_steps
+    )
 
-    for pred_dict in predictions:
-        tf.logging.info(pred_dict['predicted_classes'])
-    """
+    print("################## PREDICT ###################")
+    predictions = OCClassifier.predict(
+        #input_fn=lambda: test_input_fn(6, target_w, batch_size),
+        input_fn=test_input_fn
+    )
 
     """
     OCClassifier.evaluate(

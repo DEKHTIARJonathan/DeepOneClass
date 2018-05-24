@@ -4,16 +4,20 @@ import numpy as np
 import tensorflow as tf
 from functools import partial
 
+
 def center_dataset_values(dataset, min_v=0, max_v=255):
     return dataset.map(lambda img: img - (max_v - min_v) / 2)
 
+
 def scale_dataset_values(dataset, max_v=255):
     return dataset.map(lambda img: img / max_v)
+
 
 def str_filenames_gen(dir):
     """Genrator for filenames as strings"""
     for fn in os.listdir(dir):
         yield os.path.join(dir, str(fn))
+
 
 def load_and_transf_img(filename, target_w):
     """Image target_w x target_w x 3 as floats 0 - 255"""
@@ -30,6 +34,7 @@ def load_and_transf_img(filename, target_w):
     )
     return img
 
+
 def get_dataset(dir, target_w):
     dataset = tf.data.Dataset.from_generator(
         generator=partial(str_filenames_gen, dir),
@@ -43,17 +48,20 @@ def get_dataset(dir, target_w):
 
     return dataset
 
+
 def get_train_dataset(class_nbr, data_dir, target_w):
     return get_dataset(
         dir=os.path.join(data_dir, str(class_nbr), 'train'),
         target_w=target_w
     )
 
+
 def get_test_dataset(class_nbr, data_dir, target_w):
     return get_dataset(
         dir=os.path.join(data_dir, str(class_nbr), 'test'),
         target_w=target_w
     )
+
 
 def train_input_fn(class_nbr, target_w, batch_size):
     """Return iterator on train dataset"""
@@ -62,22 +70,14 @@ def train_input_fn(class_nbr, target_w, batch_size):
     iterator = dataset.make_one_shot_iterator()
     return iterator.get_next()
 
-def generator_random():
-    for i in range(1000):
-        yield (np.random.rand(10), 1)
 
-def train_input_fn_random(batch_size):
+def train_input_flatten_fn(class_nbr, target_w, batch_size):
     """Return iterator on train dataset"""
-    dataset = tf.data.Dataset.from_generator(
-        generator=generator_random,
-        output_types=(tf.float32, tf.float32)
-    )
+    dataset = get_train_dataset(class_nbr, "../data/DAGM 2007 - Splitted", target_w)
     dataset = dataset.batch(batch_size)
     iterator = dataset.make_one_shot_iterator()
-    next = iterator.get_next()
-    print(tf.shape(next))
-    print(next)
-    return next
+    return iterator.get_next()
+
 
 def test_input_fn(class_nbr, target_w, batch_size):
     """Return iterator on test dataset"""
@@ -85,6 +85,7 @@ def test_input_fn(class_nbr, target_w, batch_size):
     dataset = dataset.batch(batch_size)
     iterator = dataset.make_one_shot_iterator()
     return iterator.get_next()
+
 
 if __name__ == '__main__':
     sess = tf.Session()
