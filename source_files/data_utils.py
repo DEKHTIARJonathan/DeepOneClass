@@ -71,14 +71,6 @@ def train_input_fn(class_nbr, target_w, batch_size):
     return iterator.get_next()
 
 
-def train_input_flatten_fn(class_nbr, target_w, batch_size):
-    """Return iterator on train dataset"""
-    dataset = get_train_dataset(class_nbr, "../data/DAGM 2007 - Splitted", target_w)
-    dataset = dataset.batch(batch_size)
-    iterator = dataset.make_one_shot_iterator()
-    return iterator.get_next()
-
-
 def test_input_fn(class_nbr, target_w, batch_size):
     """Return iterator on test dataset"""
     dataset = get_test_dataset(class_nbr, "../data/DAGM 2007 - Splitted", target_w)

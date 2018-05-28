@@ -1,9 +1,6 @@
 import tensorflow as tf
-from data_utils import train_input_fn, test_input_fn, train_input_fn_random
+from data_utils import train_input_fn, test_input_fn
 from vgg_network import VGG_Network
-
-tf.set_random_seed(1)
-tf.logging.set_verbosity("FATAL")
 
 class _LoadPreTrainedWeightsVGG(tf.train.SessionRunHook):
 
@@ -39,44 +36,43 @@ def naive_svdd_model_fn(features, labels, mode, params):
     shapes = features.get_shape().as_list()
     input_size = shapes[1]
 
-    with tf.name_scope("SVDD"):
-        if params["kernel"] == "linear":
-            out_size = input_size
-            mapped_inputs = features
-        elif params["kernel"] in ["rffm", "rbf"]:
-            out_size = params["rffm_dims"] if "rffm_dims" in params else input_size # todo: check not None
-            kernel_mapper = tf.contrib.kernel_methods.RandomFourierFeatureMapper(
-                input_dim=input_size,
-                output_dim=out_size,
-                stddev=params["rffm_stddev"],
-                name="rffm"
-            )
-            mapped_inputs = kernel_mapper.map(features)
-        else:
-            raise ValueError("Map function {} not implemented.".format(params["kernel"]))
+    if params["kernel"] == "linear":
+        out_size = input_size
+        mapped_inputs = features
+    elif params["kernel"] in ["rffm", "rbf"]:
+        out_size = params["rffm_dims"] if "rffm_dims" in params else input_size # todo: check not None
+        kernel_mapper = tf.contrib.kernel_methods.RandomFourierFeatureMapper(
+            input_dim=input_size,
+            output_dim=out_size,
+            stddev=params["rffm_stddev"],
+            name="rffm"
+        )
+        mapped_inputs = kernel_mapper.map(features)
+    else:
+        raise ValueError("Map function {} not implemented.".format(params["kernel"]))
 
-        # Model variables
-        R = tf.Variable(tf.random_normal([], mean=10), dtype=tf.float32, name="Radius")
-        a = tf.Variable(tf.random_normal([out_size], mean=5), dtype=tf.float32, name="Center")
-        frac_err = params["frac_err"]
-        inputs_nbr = params["inputs_nbr"] # number of data
-        C = tf.constant(1.0 / (inputs_nbr * frac_err), dtype=tf.float32)
+    # Model variables
+    R = tf.Variable(tf.random_normal([], mean=10), dtype=tf.float32, name="Radius")
+    a = tf.Variable(tf.random_normal([out_size], mean=5), dtype=tf.float32, name="Center")
+    frac_err = params["frac_err"]
+    n_inputs = params["n_inputs"]
+    C = tf.constant(1.0 / (n_inputs * frac_err), dtype=tf.float32)
 
-        # Loss
-        constraint = tf.square(R) - tf.square(tf.norm(mapped_inputs - a, axis=1))
-        loss = tf.square(R) - C * tf.reduce_sum(tf.minimum(constraint, 0.0))
-        loss = tf.reduce_sum(loss)
+    # Loss
+    constraint = tf.square(R) - tf.square(tf.norm(mapped_inputs - a, axis=1))
+    loss = tf.square(R) - C * tf.reduce_sum(tf.minimum(constraint, 0.0))
+    loss = tf.reduce_sum(loss)
+    tf.summary.scalar('loss', loss)
 
     # Prediction
     if mode == tf.estimator.ModeKeys.PREDICT:
         predicted_classes = tf.sign(tf.square(R) - tf.square(tf.norm(mapped_inputs - a, axis=1)))
         predictions = {
-            'predicted_classes': predicted_classes
+            'predicted_distance': tf.square(tf.norm(mapped_inputs - a, axis=1)),
+            'predicted_classes': predicted_classes,
+            'mapped_inputs': mapped_inputs
         }
-        prediction_hooks = []#[_LoadPreTrainedWeightsVGG(vgg_model)]
-        return tf.estimator.EstimatorSpec(mode,
-                                          predictions=predictions,
-                                          prediction_hooks=prediction_hooks)
+        return tf.estimator.EstimatorSpec(mode, predictions=predictions)
 
     """
     # Evaluate
@@ -92,67 +88,7 @@ def naive_svdd_model_fn(features, labels, mode, params):
 
     # Train
     assert mode == tf.estimator.ModeKeys.TRAIN
-    optimizer = tf.train.AdamOptimizer(0.1)
-    train_op = optimizer.minimize(loss, var_list=[R, a])
-    training_hooks = []#[_LoadPreTrainedWeightsVGG(vgg_model)]
-    return tf.estimator.EstimatorSpec(mode,
-                                      loss=loss,
-                                      train_op=train_op,
-                                      training_chief_hooks=training_hooks)
-
-if __name__ == "__main__":
-
-    target_w        = 256
-    batch_size      = 1
-    train_steps     = 1
-    model_dir       = "../tmp/estimator_svdd_naive"
-
-    OCClassifier = tf.estimator.Estimator(
-        model_fn=naive_svdd_model_fn,
-        params={
-            "frac_err": 0.1,
-            "inputs_nbr": 100,
-            "input_size": 10,
-            "kernel": "linear",
-            "rffm_dims": 200,
-            "rffm_stddev": 25,
-        },
-        model_dir=model_dir
-    )
-
-    # Simulate fake data coming from a flatten layer of a CNN
-    import numpy as np
-    train_input_fn = tf.estimator.inputs.numpy_input_fn(
-        x=np.random.rand(50, 100).astype(np.dtype('float32')),
-        y=None,
-        batch_size=50,
-        num_epochs=train_steps,
-        shuffle=True
-    )
-    test_input_fn = tf.estimator.inputs.numpy_input_fn(
-        x=np.random.rand(50, 100).astype(np.dtype('float32')),
-        y=None,
-        batch_size=50,
-        num_epochs=train_steps,
-        shuffle=True
-    )
-
-    print("################## TRAIN ###################")
-    OCClassifier.train(
-        #input_fn=lambda: train_input_fn(6, target_w, batch_size),
-        input_fn=train_input_fn,
-        steps=train_steps
-    )
-
-    print("################## PREDICT ###################")
-    predictions = OCClassifier.predict(
-        #input_fn=lambda: test_input_fn(6, target_w, batch_size),
-        input_fn=test_input_fn
-    )
-
-    """
-    OCClassifier.evaluate(
-        input_fn=lambda: train_input_fn(6, target_w, batch_size),
-        steps=train_steps
-    )
-    """
+    lr = params["learning_rate"] if "learning_rate" in params else 0.1
+    optimizer = tf.train.AdamOptimizer(lr)
+    train_op = optimizer.minimize(loss, var_list=[R, a], global_step=tf.train.get_global_step())
+    return tf.estimator.EstimatorSpec(mode, loss=loss, train_op=train_op)
