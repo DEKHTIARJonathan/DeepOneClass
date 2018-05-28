@@ -1,4 +1,5 @@
 import os
+import glob
 import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
@@ -15,7 +16,7 @@ def scale_dataset_values(dataset, max_v=255):
 
 def str_filenames_gen(dir):
     """Genrator for filenames as strings"""
-    for fn in os.listdir(dir):
+    for fn in glob.glob(os.path.join(dir, "*.png")):
         yield os.path.join(dir, str(fn))
 
 
@@ -78,6 +79,25 @@ def test_input_fn(class_nbr, target_w, batch_size, keep_fn=False):
     dataset = get_test_dataset(class_nbr, "../data/DAGM 2007 - Splitted", target_w)
     if not keep_fn:
         dataset = dataset.map(lambda fn, img: img)
+    dataset = dataset.batch(batch_size)
+    iterator = dataset.make_one_shot_iterator()
+    return iterator.get_next()
+
+
+def train_cnn_input_fn(class_nbr, cnn_output_dir, batch_size, keep_fn=False):
+    """Return iterator on train dataset"""
+    dataset = tf.data.Dataset.from_generator(
+        generator=partial(str_filenames_gen, "../data/DAGM 2007 - Splitted"),
+        output_types=tf.string,
+    )
+    dataset = dataset.map(lambda path: tf.py_func(lambda p: (p, os.path.basename(p)), [path], [tf.string, tf.string]))
+    dataset = dataset.map(lambda path, fn: tf.py_func(lambda p, f, cnn, cl: (p, f, np.load("{}/{}/train/{}".format(
+        cnn,
+        cl,
+        f
+    ))), [path, fn, cnn_output_dir, class_nbr], [tf.string, tf.string, tf.float32]))
+    if not keep_fn:
+        dataset = dataset.map(lambda path, fn, img: img)
     dataset = dataset.batch(batch_size)
     iterator = dataset.make_one_shot_iterator()
     return iterator.get_next()
