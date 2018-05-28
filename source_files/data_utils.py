@@ -40,7 +40,7 @@ def get_dataset(dir, target_w):
         generator=partial(str_filenames_gen, dir),
         output_types=tf.string,
     )
-    dataset = dataset.map(lambda fn: load_and_transf_img(fn, target_w))
+    dataset = dataset.map(lambda fn: (fn, load_and_transf_img(fn, target_w)))
 
     tf.logging.debug(' Created a dataset from directory %s' % dir)
     tf.logging.debug('     Output shapes : %s' % str(dataset.output_shapes))
@@ -63,17 +63,21 @@ def get_test_dataset(class_nbr, data_dir, target_w):
     )
 
 
-def train_input_fn(class_nbr, target_w, batch_size):
+def train_input_fn(class_nbr, target_w, batch_size, keep_fn=False):
     """Return iterator on train dataset"""
     dataset = get_train_dataset(class_nbr, "../data/DAGM 2007 - Splitted", target_w)
+    if not keep_fn:
+        dataset = dataset.map(lambda fn, img: img)
     dataset = dataset.batch(batch_size)
     iterator = dataset.make_one_shot_iterator()
     return iterator.get_next()
 
 
-def test_input_fn(class_nbr, target_w, batch_size):
+def test_input_fn(class_nbr, target_w, batch_size, keep_fn=False):
     """Return iterator on test dataset"""
     dataset = get_test_dataset(class_nbr, "../data/DAGM 2007 - Splitted", target_w)
+    if not keep_fn:
+        dataset = dataset.map(lambda fn, img: img)
     dataset = dataset.batch(batch_size)
     iterator = dataset.make_one_shot_iterator()
     return iterator.get_next()
