@@ -63,6 +63,12 @@ def get_test_dataset(class_nbr, data_dir, target_w):
         target_w=target_w
     )
 
+############################################
+#
+# Pipelines for images
+#
+############################################
+
 
 def train_input_fn(class_nbr, target_w, batch_size, keep_fn=False):
     """Return iterator on train dataset"""
@@ -83,18 +89,43 @@ def test_input_fn(class_nbr, target_w, batch_size, keep_fn=False):
     iterator = dataset.make_one_shot_iterator()
     return iterator.get_next()
 
+############################################
+#
+# Pipelines for already encoded images
+#
+############################################
+
 
 def train_cnn_input_fn(class_nbr, cnn_output_dir, batch_size, keep_fn=False):
     """Return iterator on train dataset"""
     dataset = tf.data.Dataset.from_generator(
-        generator=partial(str_filenames_gen, "../data/DAGM 2007 - Splitted"),
+        generator=partial(str_filenames_gen, os.path.join("../data/DAGM 2007 - Splitted", str(class_nbr), "train")),
         output_types=tf.string,
     )
     dataset = dataset.map(lambda path: tf.py_func(lambda p: (p, os.path.basename(p)), [path], [tf.string, tf.string]))
-    dataset = dataset.map(lambda path, fn: tf.py_func(lambda p, f, cnn, cl: (p, f, np.load("{}/{}/train/{}".format(
-        cnn,
+    dataset = dataset.map(lambda path, fn: tf.py_func(lambda p, f, cnn, cl: (p, f, np.load("{}/{}/train/{}.npy".format(
+        cnn.decode('utf-8'),
         cl,
-        f
+        f.decode('utf-8')
+    ))), [path, fn, cnn_output_dir, class_nbr], [tf.string, tf.string, tf.float32]))
+    if not keep_fn:
+        dataset = dataset.map(lambda path, fn, img: img)
+    dataset = dataset.batch(batch_size)
+    iterator = dataset.make_one_shot_iterator()
+    return iterator.get_next()
+
+
+def test_cnn_input_fn(class_nbr, cnn_output_dir, batch_size, keep_fn=False):
+    """Return iterator on test dataset"""
+    dataset = tf.data.Dataset.from_generator(
+        generator=partial(str_filenames_gen, os.path.join("../data/DAGM 2007 - Splitted", str(class_nbr), "test")),
+        output_types=tf.string,
+    )
+    dataset = dataset.map(lambda path: tf.py_func(lambda p: (p, os.path.basename(p)), [path], [tf.string, tf.string]))
+    dataset = dataset.map(lambda path, fn: tf.py_func(lambda p, f, cnn, cl: (p, f, np.load("{}/{}/test/{}.npy".format(
+        cnn.decode('utf-8'),
+        cl,
+        f.decode('utf-8')
     ))), [path, fn, cnn_output_dir, class_nbr], [tf.string, tf.string, tf.float32]))
     if not keep_fn:
         dataset = dataset.map(lambda path, fn, img: img)

@@ -33,8 +33,12 @@ def naive_svdd_model_fn(features, labels, mode, params):
     #     features_map = vgg_network.outputs
     #     features_map_size = int(features_map.get_shape()[1])
 
-    shapes = features.get_shape().as_list()
-    input_size = shapes[1]
+    if "input_size" in params:
+        input_size = params["input_size"]
+    elif features.get_shape().dims is not None:
+        input_size = features.get_shape().as_list()[1]
+    else:
+        raise Exception("Input size is unknown, either not given via params or features shape is None")
 
     if params["kernel"] == "linear":
         out_size = input_size
