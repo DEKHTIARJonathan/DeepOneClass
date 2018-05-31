@@ -15,9 +15,8 @@ def scale_dataset_values(dataset, max_v=255):
 
 
 def str_filenames_gen(dir):
-    """Genrator for filenames as strings"""
-    for fn in glob.glob(os.path.join(dir, "*.png")):
-        yield os.path.join(dir, str(fn))
+    """Generator for PNG filenames as strings"""
+    return glob.iglob(os.path.join(dir, "*.png"))
 
 
 def load_and_transf_img(filename, target_w):
