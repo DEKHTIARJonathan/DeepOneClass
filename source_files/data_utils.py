@@ -111,6 +111,7 @@ def train_cnn_input_fn(class_nbr, cnn_output_dir, batch_size, keep_fn=False):
     if not keep_fn:
         dataset = dataset.map(lambda path, fn, img: img)
     dataset = dataset.batch(batch_size)
+    dataset = dataset.repeat()
     iterator = dataset.make_one_shot_iterator()
     return iterator.get_next()
 

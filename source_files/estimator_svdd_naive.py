@@ -39,6 +39,8 @@ def naive_svdd_model_fn(features, labels, mode, params):
     else:
         raise Exception("Input size is unknown, either not given via params or features shape is None")
 
+    features.set_shape((None, input_size))
+
     if params["kernel"] == "linear":
         out_size = input_size
         mapped_inputs = features
