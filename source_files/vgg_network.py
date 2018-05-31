@@ -5,6 +5,11 @@ import tensorlayer as tl
 
 import numpy as np
 
+__all__ = [
+    'VGG_Network',
+]
+
+
 class VGG_Network(object):
     """VGG Network model.
     """
@@ -19,8 +24,7 @@ class VGG_Network(object):
 
     def __call__(self, inputs, reuse=False):
 
-        with tf.variable_scope("vgg_network", reuse=reuse):
-            tl.layers.set_name_reuse(reuse)
+        with tf.variable_scope("VGG16", reuse=reuse):
 
             # Input Layers
             layer = tl.layers.InputLayer(inputs, name='input')
@@ -31,10 +35,8 @@ class VGG_Network(object):
             #     net_in.outputs = net_in.outputs - mean
 
             with tf.variable_scope("conv_layers", reuse=reuse):
-                tl.layers.set_name_reuse(reuse)
 
                 with tf.variable_scope("h1", reuse=reuse):
-                    tl.layers.set_name_reuse(reuse)
 
                     """ conv1 """
                     network = tl.layers.Conv2d(
@@ -46,7 +48,6 @@ class VGG_Network(object):
                         padding='SAME',
                         name='conv1'
                     )
-                    out1 = network.outputs
 
                     network = tl.layers.Conv2d(
                         network,
@@ -66,7 +67,6 @@ class VGG_Network(object):
                     )
 
                 with tf.variable_scope("h2", reuse=reuse):
-                    tl.layers.set_name_reuse(reuse)
 
                     """ conv2 """
                     network = tl.layers.Conv2d(
@@ -78,7 +78,6 @@ class VGG_Network(object):
                         padding='SAME',
                         name='conv1'
                     )
-                    out2 = network.outputs
 
                     network = tl.layers.Conv2d(
                         network,
@@ -98,7 +97,6 @@ class VGG_Network(object):
                     )
 
                 with tf.variable_scope("h3", reuse=reuse):
-                    tl.layers.set_name_reuse(reuse)
 
                     """ conv3 """
                     network = tl.layers.Conv2d(
@@ -110,7 +108,6 @@ class VGG_Network(object):
                         padding='SAME',
                         name='conv1'
                     )
-                    out3 = network.outputs
 
                     network = tl.layers.Conv2d(
                         network,
@@ -139,7 +136,6 @@ class VGG_Network(object):
                     )
 
                 with tf.variable_scope("h4", reuse=reuse):
-                    tl.layers.set_name_reuse(reuse)
 
                     """ conv4 """
                     network = tl.layers.Conv2d(
@@ -151,7 +147,6 @@ class VGG_Network(object):
                         padding='SAME',
                         name='conv1'
                     )
-                    out4 = network.outputs
 
                     network = tl.layers.Conv2d(
                         network,
@@ -180,7 +175,6 @@ class VGG_Network(object):
                     )
 
                 with tf.variable_scope("h5", reuse=reuse):
-                    tl.layers.set_name_reuse(reuse)
 
                     """ conv5 """
                     network = tl.layers.Conv2d(
@@ -192,7 +186,6 @@ class VGG_Network(object):
                         padding='SAME',
                         name='conv1'
                     )
-                    out5 = network.outputs
 
                     network = tl.layers.Conv2d(
                         network,
@@ -220,12 +213,12 @@ class VGG_Network(object):
                         name='pool'
                     )
 
-            if self.flatten_output:
+            if self.flatten_output or self.include_FC_head:
                 network = tl.layers.FlattenLayer(network, name='flatten')
 
             if self.include_FC_head:
                 with tf.variable_scope("dense_layers", reuse=reuse):
-                    tl.layers.set_name_reuse(reuse)
+
                     network = tl.layers.DenseLayer(network, n_units=4096, act=tf.nn.relu, name='fc1')
                     network = tl.layers.DenseLayer(network, n_units=4096, act=tf.nn.relu, name='fc2')
                     network = tl.layers.DenseLayer(network, n_units=1000, act=tf.nn.softmax, name='fc3')
@@ -233,14 +226,36 @@ class VGG_Network(object):
             if not reuse:
                 self.network = network
 
-            return network, (out1, out2, out3, out4, out5)
+            return network
+    
+    @staticmethod
+    def get_conv_layers(network):
 
+        conv_layers = [
+            "conv_layers/h1/pool/MaxPool",
+            "conv_layers/h2/pool/MaxPool",
+            "conv_layers/h3/pool/MaxPool",
+            "conv_layers/h4/pool/MaxPool",
+            "conv_layers/h5/pool/MaxPool",
+        ]
 
-    def load_pretrained(self, sess, weights_path='weights/vgg16_weights.npz'):
+        return [
+            tl.layers.get_layers_with_name(
+                network,
+                name=layer_name,
+                printable=False
+            )[0]
+            for layer_name in conv_layers
+        ]
 
-        tf.logging.info("Loading VGG Net weights ...")
+    def load_pretrained(self, sess, weights_path='../weights/vgg16_weights.npz'):
 
-        weights_path = os.path.join(os.path.realpath(__file__)[:-15], weights_path)
+        tl.logging.info("Loading VGG Net weights ...")
+
+        weights_path = os.path.join(os.path.realpath(__file__)[:-9], weights_path)
+
+        if not os.path.isfile(weights_path):
+            raise FileNotFoundError("The file `%s` can not be found." % weights_path)
 
         n_params = len(self.network.all_params)
 
@@ -253,6 +268,6 @@ class VGG_Network(object):
             if i >= n_params - 1:
                 break
 
-        tf.logging.info("Finished loading VGG Net weights ...")
+        tl.logging.info("Finished loading VGG Net weights ...")
 
         tl.files.assign_params(sess, params, self.network)
