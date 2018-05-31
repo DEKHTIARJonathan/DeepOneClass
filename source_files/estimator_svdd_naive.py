@@ -68,9 +68,12 @@ def naive_svdd_model_fn(features, labels, mode, params):
     loss = tf.reduce_sum(loss)
     tf.summary.scalar('loss', loss)
 
+    if mode in [tf.estimator.ModeKeys.PREDICT, tf.estimator.ModeKeys.EVAL]:
+        # Compute predictions.
+        predicted_classes = tf.sign(tf.square(R) - tf.square(tf.norm(mapped_inputs - a, axis=1)))
+
     # Prediction
     if mode == tf.estimator.ModeKeys.PREDICT:
-        predicted_classes = tf.sign(tf.square(R) - tf.square(tf.norm(mapped_inputs - a, axis=1)))
         predictions = {
             'predicted_distance': tf.square(tf.norm(mapped_inputs - a, axis=1)),
             'predicted_classes': predicted_classes,
@@ -78,17 +81,14 @@ def naive_svdd_model_fn(features, labels, mode, params):
         }
         return tf.estimator.EstimatorSpec(mode, predictions=predictions)
 
-    """
     # Evaluate
     if mode == tf.estimator.ModeKeys.EVAL:
         # Compute evaluation metrics.
-        accuracy = tf.metrics.accuracy(labels=labels,
+        accuracy = tf.metrics.accuracy(labels=labels, # problème ici
                                        predictions=predicted_classes,
                                        name='acc_op')
         metrics = {'accuracy': accuracy}
-        return tf.estimator.EstimatorSpec(
-            mode, loss=loss, eval_metric_ops=metrics)
-    """
+        return tf.estimator.EstimatorSpec(mode, loss=loss, eval_metric_ops=metrics)
 
     # Train
     assert mode == tf.estimator.ModeKeys.TRAIN
