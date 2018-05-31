@@ -1,5 +1,4 @@
 import tensorflow as tf
-from data_utils import train_input_fn, test_input_fn
 from vgg_network import VGG_Network
 
 class _LoadPreTrainedWeightsVGG(tf.train.SessionRunHook):
@@ -44,7 +43,7 @@ def naive_svdd_model_fn(features, labels, mode, params):
         out_size = input_size
         mapped_inputs = features
     elif params["kernel"] in ["rffm", "rbf"]:
-        out_size = params["rffm_dims"] if "rffm_dims" in params else input_size # todo: check not None
+        out_size = params["rffm_dims"] if "rffm_dims" in params else input_size
         kernel_mapper = tf.contrib.kernel_methods.RandomFourierFeatureMapper(
             input_dim=input_size,
             output_dim=out_size,
@@ -84,7 +83,7 @@ def naive_svdd_model_fn(features, labels, mode, params):
     # Evaluate
     if mode == tf.estimator.ModeKeys.EVAL:
         # Compute evaluation metrics.
-        accuracy = tf.metrics.accuracy(labels=labels, # problème ici
+        accuracy = tf.metrics.accuracy(labels=labels,
                                        predictions=predicted_classes,
                                        name='acc_op')
         metrics = {'accuracy': accuracy}
