@@ -40,7 +40,7 @@ def get_dataset(dir, target_w):
         generator=partial(str_filenames_gen, dir),
         output_types=tf.string,
     )
-    dataset = dataset.map(lambda fn: (fn, load_and_transf_img(fn, target_w)))
+    dataset = dataset.map(lambda fn: load_and_transf_img(fn, target_w))
 
     tf.logging.debug(' Created a dataset from directory %s' % dir)
     tf.logging.debug('     Output shapes : %s' % str(dataset.output_shapes))
@@ -69,21 +69,17 @@ def get_test_dataset(class_nbr, data_dir, target_w):
 ############################################
 
 
-def train_input_fn(class_nbr, target_w, batch_size, keep_filenames=False):
+def train_input_fn(class_nbr, target_w, batch_size):
     """Return iterator on train dataset"""
     dataset = get_train_dataset(class_nbr, "../data/DAGM 2007 - Splitted", target_w)
-    if not keep_filenames:
-        dataset = dataset.map(lambda fn, img: img)
     dataset = dataset.batch(batch_size)
     iterator = dataset.make_one_shot_iterator()
     return iterator.get_next()
 
 
-def test_input_fn(class_nbr, target_w, batch_size, keep_filenames=False):
+def test_input_fn(class_nbr, target_w, batch_size):
     """Return iterator on test dataset"""
     dataset = get_test_dataset(class_nbr, "../data/DAGM 2007 - Splitted", target_w)
-    if not keep_filenames:
-        dataset = dataset.map(lambda fn, img: img)
     dataset = dataset.batch(batch_size)
     iterator = dataset.make_one_shot_iterator()
     return iterator.get_next()
@@ -95,40 +91,38 @@ def test_input_fn(class_nbr, target_w, batch_size, keep_filenames=False):
 ############################################
 
 
-def train_cnn_input_fn(class_nbr, cnn_output_dir, batch_size, keep_filenames=False):
+def train_cnn_input_fn(class_nbr, cnn_output_dir, batch_size):
     """Return iterator on train dataset"""
     dataset = tf.data.Dataset.from_generator(
         generator=partial(str_filenames_gen, os.path.join("../data/DAGM 2007 - Splitted", str(class_nbr), "train")),
         output_types=tf.string,
     )
     dataset = dataset.map(lambda path: tf.py_func(lambda p: (p, os.path.basename(p)), [path], [tf.string, tf.string]))
-    dataset = dataset.map(lambda path, fn: tf.py_func(lambda p, f, cnn, cl: (p, f, np.load("{}/{}/train/{}.npy".format(
+    dataset = dataset.map(lambda path, fn: tf.py_func(lambda p, f, cnn, cl: np.load("{}/{}/train/{}.npy".format(
         cnn.decode('utf-8'),
         cl,
         f.decode('utf-8')
-    ))), [path, fn, cnn_output_dir, class_nbr], [tf.string, tf.string, tf.float32]))
-    if not keep_filenames:
-        dataset = dataset.map(lambda path, fn, img: img)
+    )), [path, fn, cnn_output_dir, class_nbr], [tf.float32]))
+
     dataset = dataset.batch(batch_size)
     dataset = dataset.repeat()
     iterator = dataset.make_one_shot_iterator()
     return iterator.get_next()
 
 
-def test_cnn_input_fn(class_nbr, cnn_output_dir, batch_size, keep_filenames=False):
+def test_cnn_input_fn(class_nbr, cnn_output_dir, batch_size):
     """Return iterator on test dataset"""
     dataset = tf.data.Dataset.from_generator(
         generator=partial(str_filenames_gen, os.path.join("../data/DAGM 2007 - Splitted", str(class_nbr), "test")),
         output_types=tf.string,
     )
     dataset = dataset.map(lambda path: tf.py_func(lambda p: (p, os.path.basename(p)), [path], [tf.string, tf.string]))
-    dataset = dataset.map(lambda path, fn: tf.py_func(lambda p, f, cnn, cl: (p, f, np.load("{}/{}/test/{}.npy".format(
+    dataset = dataset.map(lambda path, fn: tf.py_func(lambda p, f, cnn, cl: np.load("{}/{}/test/{}.npy".format(
         cnn.decode('utf-8'),
         cl,
         f.decode('utf-8')
-    ))), [path, fn, cnn_output_dir, class_nbr], [tf.string, tf.string, tf.float32]))
-    if not keep_filenames:
-        dataset = dataset.map(lambda path, fn, img: img)
+    )), [path, fn, cnn_output_dir, class_nbr], [tf.float32]))
+
     dataset = dataset.batch(batch_size)
     iterator = dataset.make_one_shot_iterator()
     return iterator.get_next()
@@ -140,16 +134,9 @@ def test_cnn_input_fn(class_nbr, cnn_output_dir, batch_size, keep_filenames=Fals
 #
 ############################################
 
-def train_cnn_direct_input_fn(class_nbr, data_dir, batch_size, network, keep_filenames=False):
-    dataset = get_train_dataset(class_nbr, data_dir, 224)
+def run_dataset_trough_network(dataset, network, reuse=False):
+    return dataset.map(lambda img: (network(img, reuse=reuse)).outputs[0])
 
-    if not keep_filenames:
-        dataset = dataset.map(lambda fn, img: (network(tf.expand_dims(img, 0))).outputs[0])
-    else:
-        dataset = dataset.map(lambda fn, img: fn, (network(tf.expand_dims(img, 0))).outputs[0])
-
-    dataset = dataset.repeat().batch(batch_size)
-    return dataset
 
 if __name__ == '__main__':
     sess = tf.Session()
