@@ -24,7 +24,7 @@ class VGG_Network(object):
 
     def __call__(self, inputs, reuse=False):
 
-        with tf.variable_scope("VGG16", reuse=reuse):
+        with tf.variable_scope("vgg_network", reuse=reuse):
 
             # Input Layers
             layer = tl.layers.InputLayer(inputs, name='input')
@@ -249,10 +249,13 @@ class VGG_Network(object):
         ]
 
     def load_pretrained(self, sess, weights_path='../weights/vgg16_weights.npz'):
+        ops = self.get_ops_load_pretrained(weights_path)
+        sess.run(ops)
 
-        tl.logging.info("Loading VGG Net weights ...")
+    def get_ops_load_pretrained(self, weights_path='../weights/vgg16_weights.npz'):
+        tf.logging.info("Loading VGG Net weights ...")
 
-        weights_path = os.path.join(os.path.realpath(__file__)[:-9], weights_path)
+        weights_path = os.path.join(os.path.realpath(__file__)[:-15], weights_path)
 
         if not os.path.isfile(weights_path):
             raise FileNotFoundError("The file `%s` can not be found." % weights_path)
@@ -260,14 +263,14 @@ class VGG_Network(object):
         n_params = len(self.network.all_params)
 
         npz = np.load(weights_path)
-        params = list()
+        ops = list()
 
         for i, val in enumerate(sorted(npz.items())):
-            params.append(val[1])
+            ops.append(self.network.all_params[i].assign(val[1]))
 
             if i >= n_params - 1:
                 break
 
-        tl.logging.info("Finished loading VGG Net weights ...")
+        tf.logging.info("Finished loading VGG Net weights ...")
 
-        tl.files.assign_params(sess, params, self.network)
+        return ops

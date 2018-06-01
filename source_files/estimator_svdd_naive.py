@@ -1,5 +1,6 @@
 import tensorflow as tf
 from vgg_network import VGG_Network
+import numpy as np
 
 class _LoadPreTrainedWeightsVGG(tf.train.SessionRunHook):
 
@@ -7,8 +8,12 @@ class _LoadPreTrainedWeightsVGG(tf.train.SessionRunHook):
         self._vgg_model = vgg_model
 
     def after_create_session(self, session, coord):
-        tf.logging.debug("vgg_model pretrained weights are to be loaded")
-        self._vgg_model.load_pretrained(session)
+        session.run(self.ops)
+        tf.logging.info("vgg_model pretrained weights are assigned")
+
+    def begin(self):
+        self.ops = self._vgg_model.get_ops_load_pretrained('weights/vgg16_weights.npz')
+
 
 def naive_svdd_model_fn(features, labels, mode, params):
     """
@@ -69,31 +74,28 @@ def naive_svdd_model_fn(features, labels, mode, params):
     loss = tf.reduce_sum(loss)
     tf.summary.scalar('loss', loss)
 
-    if mode in [tf.estimator.ModeKeys.PREDICT, tf.estimator.ModeKeys.EVAL]:
-        # Compute predictions.
-        predicted_classes = tf.sign(tf.square(R) - tf.square(tf.norm(mapped_inputs - a, axis=1)))
+    predicted_classes = tf.sign(constraint)
 
-        # Prediction
-        if mode == tf.estimator.ModeKeys.PREDICT:
-            predictions = {
-                'predicted_distance': tf.square(tf.norm(mapped_inputs - a, axis=1)),
-                'predicted_classes': predicted_classes,
-                'mapped_inputs': mapped_inputs
-            }
-            return tf.estimator.EstimatorSpec(mode, predictions=predictions)
+    if mode == tf.estimator.ModeKeys.PREDICT:
+        predictions = {
+            'predicted_scores': constraint,
+            'predicted_classes': predicted_classes
+        }
+        return tf.estimator.EstimatorSpec(mode, predictions=predictions)
 
-        # Evaluate
-        if mode == tf.estimator.ModeKeys.EVAL:
-            # Compute evaluation metrics.
-            accuracy = tf.metrics.accuracy(labels=labels,
-                                           predictions=predicted_classes,
-                                           name='acc_op')
-            metrics = {'accuracy': accuracy}
-            return tf.estimator.EstimatorSpec(mode, loss=loss, eval_metric_ops=metrics)
+    elif mode == tf.estimator.ModeKeys.EVAL:
+        # Compute evaluation metrics.
+        accuracy = tf.metrics.accuracy(labels=labels,
+                                       predictions=predicted_classes,
+                                       name='acc_op')
+        metrics = {'accuracy': accuracy}
+        return tf.estimator.EstimatorSpec(mode, loss=loss, eval_metric_ops=metrics)
 
-    # Train
-    assert mode == tf.estimator.ModeKeys.TRAIN
-    lr = params["learning_rate"] if "learning_rate" in params else 0.1
-    optimizer = tf.train.AdamOptimizer(lr)
-    train_op = optimizer.minimize(loss, var_list=[R, a], global_step=tf.train.get_global_step())
-    return tf.estimator.EstimatorSpec(mode, loss=loss, train_op=train_op)
+    elif mode == tf.estimator.ModeKeys.TRAIN:
+        lr = params["learning_rate"] if "learning_rate" in params else 0.1
+        optimizer = tf.train.AdamOptimizer(lr)
+        train_op = optimizer.minimize(loss, var_list=[R, a], global_step=tf.train.get_global_step())
+        return tf.estimator.EstimatorSpec(mode, loss=loss, train_op=train_op)
+
+    else:
+        tf.logging.error("Mode not recognized: {}".format(mode))
