@@ -37,7 +37,7 @@ def naive_svdd_model_fn(features, labels, mode, params):
     #     features_map = vgg_network.outputs
     #     features_map_size = int(features_map.get_shape()[1])
 
-    if "input_size" in params:
+    if "input_size" in params and params["input_size"]:
         input_size = params["input_size"]
     elif features.get_shape().dims is not None:
         input_size = features.get_shape().as_list()[1]
@@ -66,6 +66,7 @@ def naive_svdd_model_fn(features, labels, mode, params):
     a = tf.Variable(tf.random_normal([out_size], mean=5), dtype=tf.float32, name="Center")
     frac_err = params["frac_err"]
     n_inputs = params["n_inputs"]
+
     C = tf.constant(1.0 / (n_inputs * frac_err), dtype=tf.float32)
 
     # Loss
@@ -99,3 +100,46 @@ def naive_svdd_model_fn(features, labels, mode, params):
 
     else:
         tf.logging.error("Mode not recognized: {}".format(mode))
+
+
+class OCClassifier(tf.estimator.Estimator):
+    def __init__(self,
+                 frac_err=0.1,
+                 n_inputs=1000,
+                 kernel="linear",
+                 rffm_dims=None,
+                 rffm_stddev=None,
+                 learning_rate=0.1,
+                 input_size=None,
+                 *args, **kwargs):
+        """
+        :param frac_err: Fraction of the inputs that are defective
+        :param n_inputs: Approximation of the total number of input vectors
+        :param kernel: Mapping function used: linear or rbf
+        :param rffm_dims: If rbf kernel, specify the output dimensions of the map
+        :param rffm_stddev: Stddev for the rbf map
+        :param learning_rate: Learning rate of the optimizer
+        :param input_size: Number of dimensions of the input vectors
+        """
+
+        assert kernel in ["linear", "rffm", "rbf"]
+        assert kernel not in ["rffm", "rbf"] or (rffm_dims is not None and rffm_stddev is not None)
+        assert kernel not in ["rffm", "rbf"] or (rffm_dims > 0 and rffm_stddev > 0)
+        assert input_size is None or input_size > 0
+        assert frac_err > 0
+
+
+        super(OCClassifier, self).__init__(
+            model_fn=naive_svdd_model_fn,
+            params={
+               "frac_err": frac_err,
+               "n_inputs": n_inputs,
+               "kernel": kernel,
+               "rffm_dims": rffm_dims,
+               "rffm_stddev": rffm_stddev,
+               "learning_rate": learning_rate,
+               "input_size": input_size
+            },
+            *args,
+            **kwargs
+        )

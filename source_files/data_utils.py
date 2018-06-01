@@ -148,7 +148,7 @@ def train_cnn_direct_input_fn(class_nbr, data_dir, batch_size, network, keep_fil
     else:
         dataset = dataset.map(lambda fn, img: fn, (network(tf.expand_dims(img, 0))).outputs[0])
 
-    dataset = dataset.batch(batch_size)
+    dataset = dataset.repeat().batch(batch_size)
     return dataset
 
 if __name__ == '__main__':
