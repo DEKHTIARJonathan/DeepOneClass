@@ -8,14 +8,13 @@ if __name__ == "__main__":
     tf.logging.set_verbosity(tf.logging.DEBUG)
 
     classifier = OCClassifier(
-        frac_err=0.5,
-        n_inputs=5,
-        kernel="linear",
-        learning_rate=1,
-        model_dir='estimator-ckpt'
+        c=5,
+        kernel="rbf",
+        rffm_dims=10,
+        rffm_stddev=5,
+        learning_rate=0.01,
+        model_dir=None
     )
-
-    OCClassifier()
 
     net1 = VGG_Network(include_FC_head=False)
 
@@ -25,15 +24,18 @@ if __name__ == "__main__":
         return dataset
 
     classifier.train(
-        input_fn=lambda: get_dataset(net1, None).repeat().batch(1),
+        input_fn=lambda: get_dataset(net1, False).repeat().batch(1),
         hooks=[_LoadPreTrainedWeightsVGG(net1)],
-        max_steps=100
+        max_steps=1000
     )
-    #
-    # out = classifier.predict(
-    #     input_fn=lambda: get_dataset(net1, tf.AUTO_REUSE).batch(1),
-    #     hooks=[_LoadPreTrainedWeightsVGG(net1)]
-    # )
-    #
-    # predictions = np.asarray(list(map(lambda p: p["predicted_classes"], out))).astype(np.int32)
-    # print(predictions)
+
+    out = classifier.predict(
+        input_fn=lambda: get_dataset(net1, False).batch(1),
+        hooks=[_LoadPreTrainedWeightsVGG(net1)]
+    )
+
+    predictions = np.asarray(list(map(lambda p: p["predicted_classes"], out))).astype(np.int32)
+    print(predictions)
+
+    print('Center : {}'.format(classifier.get_variable_value("Center")))
+    print('Radius : {}'.format(classifier.get_variable_value("Radius")))

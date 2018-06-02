@@ -64,10 +64,8 @@ def naive_svdd_model_fn(features, labels, mode, params):
     # Model variables
     R = tf.Variable(tf.random_normal([], mean=10), dtype=tf.float32, name="Radius")
     a = tf.Variable(tf.random_normal([out_size], mean=5), dtype=tf.float32, name="Center")
-    frac_err = params["frac_err"]
-    n_inputs = params["n_inputs"]
 
-    C = tf.constant(1.0 / (n_inputs * frac_err), dtype=tf.float32)
+    C = tf.constant(params["c"], dtype=tf.float32)
 
     # Loss
     constraint = tf.square(R) - tf.square(tf.norm(mapped_inputs - a, axis=1))
@@ -104,8 +102,7 @@ def naive_svdd_model_fn(features, labels, mode, params):
 
 class OCClassifier(tf.estimator.Estimator):
     def __init__(self,
-                 frac_err=0.1,
-                 n_inputs=1000,
+                 c=2.0,
                  kernel="linear",
                  rffm_dims=None,
                  rffm_stddev=None,
@@ -126,14 +123,13 @@ class OCClassifier(tf.estimator.Estimator):
         assert kernel not in ["rffm", "rbf"] or (rffm_dims is not None and rffm_stddev is not None)
         assert kernel not in ["rffm", "rbf"] or (rffm_dims > 0 and rffm_stddev > 0)
         assert input_size is None or input_size > 0
-        assert frac_err > 0
+        assert c > 0
 
 
         super(OCClassifier, self).__init__(
             model_fn=naive_svdd_model_fn,
             params={
-               "frac_err": frac_err,
-               "n_inputs": n_inputs,
+               "c": c,
                "kernel": kernel,
                "rffm_dims": rffm_dims,
                "rffm_stddev": rffm_stddev,
