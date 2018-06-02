@@ -9,33 +9,33 @@ if __name__ == "__main__":
 
     classifier = OCClassifier(
         c=5,
-        kernel="rbf",
+        kernel="linear",
         rffm_dims=10,
         rffm_stddev=5,
-        learning_rate=0.01,
+        learning_rate=0.1,
         model_dir=None
     )
 
     net1 = VGG_Network(include_FC_head=False)
 
     def get_dataset(net, reuse=False):
-        dataset = get_train_dataset(6, '../data/sanity_check', 224).batch(1)
+        dataset = get_train_dataset(6, '../data/DAGM 2007 - Splitted', 224).batch(10)
         dataset = run_dataset_trough_network(dataset, net, reuse)
         return dataset
 
     classifier.train(
-        input_fn=lambda: get_dataset(net1, False).repeat().batch(1),
+        input_fn=lambda: get_dataset(net1, False).repeat(),
         hooks=[_LoadPreTrainedWeightsVGG(net1)],
         max_steps=1000
     )
 
-    out = classifier.predict(
-        input_fn=lambda: get_dataset(net1, False).batch(1),
-        hooks=[_LoadPreTrainedWeightsVGG(net1)]
-    )
-
-    predictions = np.asarray(list(map(lambda p: p["predicted_classes"], out))).astype(np.int32)
-    print(predictions)
+    # out = classifier.predict(
+    #     input_fn=lambda: get_dataset(net1, False),
+    #     hooks=[_LoadPreTrainedWeightsVGG(net1)]
+    # )
+    #
+    # predictions = np.asarray(list(map(lambda p: p["predicted_classes"], out))).astype(np.int32)
+    # print(predictions)
 
     print('Center : {}'.format(classifier.get_variable_value("Center")))
     print('Radius : {}'.format(classifier.get_variable_value("Radius")))

@@ -135,7 +135,7 @@ def test_cnn_input_fn(class_nbr, cnn_output_dir, batch_size):
 ############################################
 
 def run_dataset_trough_network(dataset, network, reuse=False):
-    return dataset.map(lambda img: (network(img, reuse=reuse)).outputs[0])
+    return dataset.map(lambda img: (network(img, reuse=reuse)).outputs)
 
 
 if __name__ == '__main__':
