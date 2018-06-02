@@ -5,6 +5,10 @@ from source_files.vgg_network import VGG_Network
 
 if __name__ == "__main__":
 
+    if tl.__version__ >= "1.8.6":
+        tf.logging.set_verbosity(tf.logging.DEBUG)
+        tl.logging.set_verbosity(tl.logging.DEBUG)
+
     vgg_net = VGG_Network(include_FC_head=False)
 
     a = tf.placeholder(tf.float32, [None, 224, 224, 3])
