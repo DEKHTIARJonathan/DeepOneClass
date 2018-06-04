@@ -23,18 +23,6 @@ def naive_svdd_model_fn(features, labels, mode, params):
     :return: tf.estimator.EstimatorSpec
     """
 
-    # Few details on inputs
-    # print(tf.shape(features)) # 4 because -> (?, 256, 256, 3)
-    # print(features) # Tensor("IteratorGetNext:0", shape=(?, 256, 256, 3), [...])
-    # print(labels) # None if iterator only returns single image and not a tuple
-
-    #
-    # with tf.name_scope("VGG"):
-    #     vgg_model = VGG_Network(include_FC_head=False)
-    #     vgg_network, _ = vgg_model(features)
-    #     features_map = vgg_network.outputs
-    #     features_map_size = int(features_map.get_shape()[1])
-
     if "input_size" in params and params["input_size"]:
         input_size = params["input_size"]
     elif features.get_shape().dims is not None:
@@ -108,8 +96,7 @@ class OCClassifier(tf.estimator.Estimator):
                  input_size=None,
                  *args, **kwargs):
         """
-        :param frac_err: Fraction of the inputs that are defective
-        :param n_inputs: Approximation of the total number of input vectors
+        :param c: Regularization parameter
         :param kernel: Mapping function used: linear or rbf
         :param rffm_dims: If rbf kernel, specify the output dimensions of the map
         :param rffm_stddev: Stddev for the rbf map
