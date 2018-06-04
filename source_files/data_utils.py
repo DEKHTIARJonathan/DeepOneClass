@@ -1,10 +1,16 @@
 import os
 import glob
-import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 import tensorflow as tf
 from functools import partial
 
+
+############################################
+#
+# Images transformation
+#
+############################################
 
 def center_dataset_values(dataset, min_v=0, max_v=255):
     return dataset.map(lambda img: img - (max_v - min_v) / 2)
@@ -12,11 +18,6 @@ def center_dataset_values(dataset, min_v=0, max_v=255):
 
 def scale_dataset_values(dataset, max_v=255):
     return dataset.map(lambda img: img / max_v)
-
-
-def str_filenames_gen(dir):
-    """Generator for PNG filenames as strings"""
-    return glob.iglob(os.path.join(dir, "*.png"))
 
 
 def load_and_transf_img(filename, target_w):
@@ -35,32 +36,68 @@ def load_and_transf_img(filename, target_w):
     return img
 
 
-def get_dataset(dir, target_w):
+############################################
+#
+# Images generator
+#
+############################################
+
+def filename_generator(dir):
+    """Generator filenames"""
+    return glob.iglob(os.path.join(dir, "*.png"))
+
+
+def csv_generator(csv_path, class_nbr):
+    """Generator csv files"""
+    df = pd.read_csv(csv_path, sep=",")
+    for index, row in df.iterrows():
+        img_path = os.path.join('..', 'data/DAGM 2007 - Splitted', str(class_nbr), row['target'].replace("\\", "/"))
+        label = row['is_healthy']
+        yield (img_path, label)
+
+
+############################################
+#
+# Base Tensorflow Datasets
+#
+############################################
+
+# Generator from filenames
+
+def get_fn_dataset(dir, target_w):
+    """Return Tensorflow Dataset from filename generator"""
     dataset = tf.data.Dataset.from_generator(
-        generator=partial(str_filenames_gen, dir),
+        generator=partial(filename_generator, dir),
         output_types=tf.string,
     )
-    dataset = dataset.map(lambda fn: load_and_transf_img(fn, target_w))
-
-    tf.logging.debug(' Created a dataset from directory %s' % dir)
-    tf.logging.debug('     Output shapes : %s' % str(dataset.output_shapes))
-    tf.logging.debug('     Output types : %s\n' % str(dataset.output_types))
 
     return dataset
 
 
-def get_train_dataset(class_nbr, data_dir, target_w):
-    return get_dataset(
+def get_fn_train_dataset(class_nbr, data_dir, target_w):
+    return get_fn_dataset(
         dir=os.path.join(data_dir, str(class_nbr), 'train'),
         target_w=target_w
     )
 
 
-def get_test_dataset(class_nbr, data_dir, target_w):
-    return get_dataset(
+def get_fn_test_dataset(class_nbr, data_dir, target_w):
+    return get_fn_dataset(
         dir=os.path.join(data_dir, str(class_nbr), 'test'),
         target_w=target_w
     )
+
+# Generator from csv files
+
+def get_csv_dataset(csv_path, class_nbr):
+    """Return Tensorflow Dataset from csv generator"""
+    dataset = tf.data.Dataset.from_generator(
+        generator=lambda: csv_generator(csv_path, class_nbr),
+        output_types=(tf.string, tf.int32),
+    )
+
+    return dataset
+
 
 ############################################
 #
@@ -68,21 +105,35 @@ def get_test_dataset(class_nbr, data_dir, target_w):
 #
 ############################################
 
+def _input_fn(class_nbr, target_w, type="train", keep_label=False):
+    """Return ready Dataset to turn into iterator"""
 
-def train_input_fn(class_nbr, target_w, batch_size):
-    """Return iterator on train dataset"""
-    dataset = get_train_dataset(class_nbr, "../data/DAGM 2007 - Splitted", target_w)
-    dataset = dataset.batch(batch_size)
-    iterator = dataset.make_one_shot_iterator()
-    return iterator.get_next()
+    # Get filenames
+    csv_path = os.path.join("..", "data/DAGM 2007 - Splitted", str(class_nbr), "{}_files.csv".format(type))
+    dataset = get_csv_dataset(csv_path, class_nbr)
+
+    # Open and transform original images
+    dataset = dataset.map(lambda fn, label: (load_and_transf_img(fn, target_w), label))
+
+    if not keep_label:
+        dataset = dataset.map(lambda img, label: img)
+
+    tf.logging.debug(' Created a {} dataset from csv file {}'.format(type, csv_path))
+    tf.logging.debug('     Output shapes : %s' % str(dataset.output_shapes))
+    tf.logging.debug('     Output types : %s\n' % str(dataset.output_types))
+
+    return dataset
 
 
-def test_input_fn(class_nbr, target_w, batch_size):
-    """Return iterator on test dataset"""
-    dataset = get_test_dataset(class_nbr, "../data/DAGM 2007 - Splitted", target_w)
-    dataset = dataset.batch(batch_size)
-    iterator = dataset.make_one_shot_iterator()
-    return iterator.get_next()
+def train_input_fn(class_nbr, target_w):
+    """Return Dataset on train dataset: get_next() -> ([image * batch_size])"""
+    return _input_fn(class_nbr, target_w, type="train", keep_label=False)
+
+
+def test_input_fn(class_nbr, target_w):
+    """Return Dataset on train dataset: get_next() -> ([image * batch_size], [label * batch_size])"""
+    return _input_fn(class_nbr, target_w, type="test", keep_label=True)
+
 
 ############################################
 #
@@ -90,41 +141,65 @@ def test_input_fn(class_nbr, target_w, batch_size):
 #
 ############################################
 
+def _cnn_input_fn(class_nbr, cnn_output_dir, type="train", keep_label=False):
+    """Return ready Dataset to turn into iterator"""
 
-def train_cnn_input_fn(class_nbr, cnn_output_dir, batch_size):
-    """Return iterator on train dataset"""
-    dataset = tf.data.Dataset.from_generator(
-        generator=partial(str_filenames_gen, os.path.join("../data/DAGM 2007 - Splitted", str(class_nbr), "train")),
-        output_types=tf.string,
-    )
-    dataset = dataset.map(lambda path: tf.py_func(lambda p: os.path.basename(p), [path], [tf.string]))
-    dataset = dataset.map(lambda fn: tf.py_func(lambda f, cnn, cl: np.load("{}/{}/train/{}.npy".format(
-        cnn.decode('utf-8'),
-        cl,
-        f.decode('utf-8')
-    )), [fn, cnn_output_dir, class_nbr], [tf.float32]))
+    # Get filenames path
+    csv_path = os.path.join("..", "data/DAGM 2007 - Splitted", str(class_nbr), "{}_files.csv".format(type))
+    dataset = get_csv_dataset(csv_path, class_nbr)
 
-    dataset = dataset.batch(batch_size)
-    dataset = dataset.repeat()
+    # Get exact filename
+    dataset = dataset.map(lambda path, label: tf.py_func(
+        lambda p, l: (os.path.basename(p), l),
+        [path, label],
+        [tf.string, tf.int32]
+    ))
+
+    # Open encoded image
+    dataset = dataset.map(lambda fn, label: tf.py_func(
+        lambda cnn, cl, t, fn, l: (np.load("{}/{}/{}/{}.npy".format(
+            cnn.decode('utf-8'),
+            cl,
+            t.decode('utf-8'),
+            fn.decode('utf-8')
+        )), l),
+        [cnn_output_dir, class_nbr, type, fn, label],
+        [tf.float32, tf.int32]
+    ))
+
+    # Read shape of read .npy files
+    first_file = glob.glob(os.path.join(cnn_output_dir, str(class_nbr), type, "*.npy"))[0]
+    shape = np.load(first_file).shape
+    dataset = dataset.map(lambda img, label: (tf.reshape(img, shape), label))
+
+    if not keep_label:
+        dataset = dataset.map(lambda img, label: img)
+
+    tf.logging.debug(' Created a {} dataset from csv file {}'.format(type, csv_path))
+    tf.logging.debug('     Output shapes : %s' % str(dataset.output_shapes))
+    tf.logging.debug('     Output types : %s\n' % str(dataset.output_types))
+
     return dataset
 
 
-def test_cnn_input_fn(class_nbr, cnn_output_dir, batch_size):
-    """Return iterator on test dataset"""
-    # Se baser sur le csv
-    dataset = tf.data.Dataset.from_generator(
-        generator=partial(str_filenames_gen, os.path.join("../data/DAGM 2007 - Splitted", str(class_nbr), "test")),
-        output_types=tf.string,
+def train_cnn_input_fn(class_nbr, cnn_output_dir):
+    """Return Dataset on train dataset: get_next() -> ([image * batch_size])"""
+    return _cnn_input_fn(
+        class_nbr,
+        cnn_output_dir,
+        type="train",
+        keep_label=False
     )
-    dataset = dataset.map(lambda path: tf.py_func(lambda p: os.path.basename(p), [path], [tf.string]))
-    dataset = dataset.map(lambda fn: tf.py_func(lambda p, f, cnn, cl: np.load("{}/{}/test/{}.npy".format(
-        cnn.decode('utf-8'),
-        cl,
-        f.decode('utf-8')
-    )), [fn, cnn_output_dir, class_nbr], [tf.float32]))
 
-    dataset = dataset.batch(batch_size)
-    return dataset
+
+def test_cnn_input_fn(class_nbr, cnn_output_dir):
+    """Return Dataset on test dataset: get_next() -> ([image * batch_size], [label * batch_size])"""
+    return _cnn_input_fn(
+        class_nbr,
+        cnn_output_dir,
+        type="test",
+        keep_label=True,
+    )
 
 
 ############################################
@@ -133,14 +208,65 @@ def test_cnn_input_fn(class_nbr, cnn_output_dir, batch_size):
 #
 ############################################
 
-def run_dataset_trough_network(dataset, network, reuse=False):
+def run_dataset_through_network(dataset, network, reuse=False):
     return dataset.map(lambda img: (network(img, reuse=reuse)).outputs)
 
 
-if __name__ == '__main__':
-    sess = tf.Session()
-    img = sess.run(load_and_transf_img('../data/DAGM 2007 - Splitted/6/test/001.png', 224))
-    print(img.astype(np.uint8))
-    plt.imshow(img.astype(np.uint8))
-    plt.show()
+############################################
+#
+# Sanity checks
+#
+############################################
 
+if __name__ == '__main__':
+
+    tf.logging.set_verbosity(tf.logging.DEBUG)
+
+    CLASS_NBR = 6
+    CNN_OUTPUT_DIR = os.path.join("..", "tmp", "cnn_output", "VGG16")
+    TARGET_W = 224
+
+    with tf.Session() as sess:
+
+        print("load_and_transf_img")
+        img = sess.run(load_and_transf_img('../data/DAGM 2007 - Splitted/6/test/001.png', 224))
+        assert isinstance(img, np.ndarray)
+
+        print("get_csv_dataset")
+        dataset = get_csv_dataset(
+            os.path.join('..', 'data/DAGM 2007 - Splitted', str(CLASS_NBR), 'train_files.csv'),
+            CLASS_NBR
+        ).batch(1)
+        res = dataset.make_one_shot_iterator().get_next()
+        assert len(res) == 2
+
+        print("train_input_fn")
+        dataset = train_input_fn(CLASS_NBR, TARGET_W)
+        dataset = dataset.batch(1)
+        iterator = dataset.make_one_shot_iterator().get_next()
+        t = sess.run(iterator)
+        assert len(t) == 1
+        assert isinstance(img, np.ndarray)
+
+        print("test_input_fn")
+        dataset = test_input_fn(CLASS_NBR, TARGET_W)
+        dataset = dataset.batch(1)
+        iterator = dataset.make_one_shot_iterator().get_next()
+        t = sess.run(iterator)
+        assert len(t) == 2
+        assert isinstance(t[0], np.ndarray)
+        assert isinstance(t[1], np.ndarray)
+
+        print("train_cnn_input_fn")
+        dataset = train_cnn_input_fn(CLASS_NBR, CNN_OUTPUT_DIR)
+        dataset = dataset.batch(2)
+        iterator = dataset.make_one_shot_iterator().get_next()
+        t = sess.run(iterator)
+
+        print("test_cnn_input_fn")
+        dataset = test_cnn_input_fn(CLASS_NBR, CNN_OUTPUT_DIR)
+        dataset = dataset.batch(2)
+        iterator = dataset.make_one_shot_iterator().get_next()
+        t = sess.run(iterator)
+
+    print("Sanity checks: OK")

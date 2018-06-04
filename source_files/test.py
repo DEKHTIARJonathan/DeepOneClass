@@ -1,13 +1,13 @@
 import tensorflow as tf
 from vgg_network import VGG_Network
 from estimator_svdd_naive import _LoadPreTrainedWeightsVGG, OCClassifier
-from data_utils import *
+from data_utils import train_input_fn, run_dataset_through_network
 import numpy as np
 
 
 def get_dataset(net, reuse=False):
-    dataset = get_train_dataset(6, '../data/DAGM 2007 - Splitted', 224).batch(2)
-    dataset = run_dataset_trough_network(dataset, net, reuse)
+    dataset = train_input_fn(6, 224).batch(2).repeat()
+    dataset = run_dataset_through_network(dataset, net, reuse)
     return dataset
 
 

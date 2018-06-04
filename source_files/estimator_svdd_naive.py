@@ -1,6 +1,5 @@
 import tensorflow as tf
-from vgg_network import VGG_Network
-import numpy as np
+
 
 class _LoadPreTrainedWeightsVGG(tf.train.SessionRunHook):
     def __init__(self, vgg_model):
@@ -12,6 +11,7 @@ class _LoadPreTrainedWeightsVGG(tf.train.SessionRunHook):
 
     def begin(self):
         self.ops = self._vgg_model.get_ops_load_pretrained('weights/vgg16_weights.npz')
+
 
 def naive_svdd_model_fn(features, labels, mode, params):
     """
@@ -109,7 +109,6 @@ class OCClassifier(tf.estimator.Estimator):
         assert kernel not in ["rffm", "rbf"] or (rffm_dims > 0 and rffm_stddev > 0)
         assert input_size is None or input_size > 0
         assert c > 0
-
 
         super(OCClassifier, self).__init__(
             model_fn=naive_svdd_model_fn,
