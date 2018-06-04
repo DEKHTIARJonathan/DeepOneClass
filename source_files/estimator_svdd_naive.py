@@ -3,7 +3,6 @@ from vgg_network import VGG_Network
 import numpy as np
 
 class _LoadPreTrainedWeightsVGG(tf.train.SessionRunHook):
-
     def __init__(self, vgg_model):
         self._vgg_model = vgg_model
 
@@ -13,7 +12,6 @@ class _LoadPreTrainedWeightsVGG(tf.train.SessionRunHook):
 
     def begin(self):
         self.ops = self._vgg_model.get_ops_load_pretrained('weights/vgg16_weights.npz')
-
 
 def naive_svdd_model_fn(features, labels, mode, params):
     """

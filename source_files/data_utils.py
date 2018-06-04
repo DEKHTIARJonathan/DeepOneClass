@@ -97,17 +97,16 @@ def train_cnn_input_fn(class_nbr, cnn_output_dir, batch_size):
         generator=partial(str_filenames_gen, os.path.join("../data/DAGM 2007 - Splitted", str(class_nbr), "train")),
         output_types=tf.string,
     )
-    dataset = dataset.map(lambda path: tf.py_func(lambda p: (p, os.path.basename(p)), [path], [tf.string, tf.string]))
-    dataset = dataset.map(lambda path, fn: tf.py_func(lambda p, f, cnn, cl: np.load("{}/{}/train/{}.npy".format(
+    dataset = dataset.map(lambda path: tf.py_func(lambda p: os.path.basename(p), [path], [tf.string]))
+    dataset = dataset.map(lambda path, fn: tf.py_func(lambda f, cnn, cl: np.load("{}/{}/train/{}.npy".format(
         cnn.decode('utf-8'),
         cl,
         f.decode('utf-8')
-    )), [path, fn, cnn_output_dir, class_nbr], [tf.float32]))
+    )), [fn, cnn_output_dir, class_nbr], [tf.float32]))
 
     dataset = dataset.batch(batch_size)
     dataset = dataset.repeat()
-    iterator = dataset.make_one_shot_iterator()
-    return iterator.get_next()
+    return dataset
 
 
 def test_cnn_input_fn(class_nbr, cnn_output_dir, batch_size):
@@ -124,8 +123,7 @@ def test_cnn_input_fn(class_nbr, cnn_output_dir, batch_size):
     )), [path, fn, cnn_output_dir, class_nbr], [tf.float32]))
 
     dataset = dataset.batch(batch_size)
-    iterator = dataset.make_one_shot_iterator()
-    return iterator.get_next()
+    return dataset
 
 
 ############################################
