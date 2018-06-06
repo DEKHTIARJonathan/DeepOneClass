@@ -64,7 +64,7 @@ def csv_generator(csv_path, class_nbr):
 
 # Generator from filenames
 
-def get_fn_dataset(dir, target_w):
+def get_fn_dataset(dir):
     """Return Tensorflow Dataset from filename generator"""
     dataset = tf.data.Dataset.from_generator(
         generator=partial(filename_generator, dir),
