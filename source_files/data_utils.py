@@ -74,17 +74,15 @@ def get_fn_dataset(dir):
     return dataset
 
 
-def get_fn_train_dataset(class_nbr, data_dir, target_w):
+def get_fn_train_dataset(class_nbr, data_dir):
     return get_fn_dataset(
-        dir=os.path.join(data_dir, str(class_nbr), 'train'),
-        target_w=target_w
+        dir=os.path.join(data_dir, str(class_nbr), 'train')
     )
 
 
-def get_fn_test_dataset(class_nbr, data_dir, target_w):
+def get_fn_test_dataset(class_nbr, data_dir):
     return get_fn_dataset(
-        dir=os.path.join(data_dir, str(class_nbr), 'test'),
-        target_w=target_w
+        dir=os.path.join(data_dir, str(class_nbr), 'test')
     )
 
 # Generator from csv files
