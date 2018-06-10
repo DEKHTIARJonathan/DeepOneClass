@@ -49,7 +49,7 @@ def evaluation_summary(y_true, y_pred, plot_cm=False):
 
     if plot_cm:
         plot_confusion_matrix(cm, classes=["Outlier", "Normal"],
-                              normalize=True, title='Normalized confusion matrix')
+                              normalize=False, title='Confusion matrix')
 
     return pd.Series({
         "Accuracy": acc,
