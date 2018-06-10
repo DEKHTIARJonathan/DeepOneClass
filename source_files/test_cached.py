@@ -18,10 +18,8 @@ if __name__ == "__main__":
         model_dir=None
     )
 
-    net1 = VGG_Network(include_FC_head=False)
-
     classifier.train(
-        input_fn=lambda: train_cnn_input_fn(class_nbr, '../tmp/cnn_output/VGG16').batch(batch_size),
+        input_fn=lambda: train_cnn_input_fn(class_nbr, '../tmp/cnn_output/VGG16').batch(batch_size).repeat(),
         steps=400
     )
 

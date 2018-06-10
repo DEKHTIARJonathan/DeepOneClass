@@ -55,11 +55,13 @@ def naive_svdd_model_fn(features, labels, mode, params):
 
     # Loss
     constraint = tf.square(R) - tf.square(tf.norm(mapped_inputs - a, axis=1))
-    loss = tf.square(R) - C * tf.reduce_sum(tf.minimum(constraint, 0.0))
-    loss = tf.reduce_sum(loss)
-    tf.summary.scalar('loss', loss)
+    loss = tf.square(R) - C * tf.reduce_mean(tf.minimum(constraint, 0.0))
 
     predicted_classes = tf.sign(constraint)
+
+    tf.summary.scalar('loss', loss)
+    tf.summary.scalar('radius', R)
+    tf.summary.scalar('center_norm', tf.norm(a))
 
     if mode == tf.estimator.ModeKeys.PREDICT:
         predictions = {
@@ -79,7 +81,15 @@ def naive_svdd_model_fn(features, labels, mode, params):
     elif mode == tf.estimator.ModeKeys.TRAIN:
         lr = params["learning_rate"] if "learning_rate" in params else 0.1
         optimizer = tf.train.AdamOptimizer(lr)
-        train_op = optimizer.minimize(loss, var_list=[R, a], global_step=tf.train.get_global_step())
+
+        grads = optimizer.compute_gradients(loss, [R, a])
+        train_op = optimizer.apply_gradients(grads, global_step=tf.train.get_global_step())
+
+        tf.summary.scalar('grad_radius', grads[0][0])
+        # tf.summary.scalar('grad_center', grads[1][0])
+
+
+
         return tf.estimator.EstimatorSpec(mode, loss=loss, train_op=train_op)
 
     else:
