@@ -1,6 +1,6 @@
 import tensorflow as tf
 from vgg_network import VGG_Network
-from estimator_svdd_naive import _LoadPreTrainedWeightsVGG, OCClassifier
+from estimator_svdd import _LoadPreTrainedWeightsVGG, OCClassifier
 from data_utils import *
 import numpy as np
 

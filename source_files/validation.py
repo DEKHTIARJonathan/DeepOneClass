@@ -1,9 +1,19 @@
-import itertools
-from matplotlib import pyplot as plt
+#!/usr/bin/env python
+
+import tensorflow as tf
 import numpy as np
 import pandas as pd
+
+import itertools
+from matplotlib import pyplot as plt
+
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
 
+from estimator_svdd import OCClassifier as SVDDClassifier
+from estimator_svdd import _LoadPreTrainedWeightsVGG
+from vgg_network import VGG_Network
+from data_utils import test_cnn_input_fn, test_input_fn, run_dataset_through_network
+from flags import FLAGS
 
 def plot_confusion_matrix(cm, classes,
                           normalize=False,
@@ -38,6 +48,7 @@ def plot_confusion_matrix(cm, classes,
     plt.tight_layout()
     plt.ylabel('True label')
     plt.xlabel('Predicted label')
+    plt.show()
 
 
 def evaluation_summary(y_true, y_pred, plot_cm=False):
@@ -58,8 +69,56 @@ def evaluation_summary(y_true, y_pred, plot_cm=False):
         "f1-score": f1
     })
 
+def main(argv=None):
+    train_hooks = []
+
+    if FLAGS.mode == 'cached':
+        input_fn_test = lambda: test_cnn_input_fn(FLAGS.class_nbr, FLAGS.cnn_output_dir)\
+                                 .batch(FLAGS.batch_size)
+    else:
+        vgg_net = VGG_Network(include_FC_head=False)
+
+        input_fn_test = lambda: run_dataset_through_network(
+                                     test_input_fn(FLAGS.class_nbr, FLAGS.target_width)\
+                                         .batch(FLAGS.batch_size),
+                                     vgg_net
+                                 )
+
+        train_hooks.append(_LoadPreTrainedWeightsVGG(vgg_net))
+
+    tf.logging.info('Creating the classifier\n\n')
+    classifier = SVDDClassifier(
+        c=FLAGS.c,
+        kernel=FLAGS.kernel,
+        model_dir=FLAGS.model_dir,
+    )
+
+    tf.logging.info('Predicting with the classifier\n\n')
+    predictions = classifier.predict(
+        input_fn=input_fn_test,
+        hooks=train_hooks
+    )
+
+    predictions = list(predictions)
+    test_predicted_scores = np.asarray(list(map(lambda p: p["predicted_scores"], predictions))).astype(np.int32)
+    test_predicted_classes = np.asarray(list(map(lambda p: p["predicted_classes"], predictions))).astype(np.int32)
+
+    y_test = []
+    input_fn = test_cnn_input_fn(FLAGS.class_nbr, FLAGS.cnn_output_dir).batch(1)
+    input_fn = input_fn.make_one_shot_iterator().get_next()
+    sess = tf.Session()
+    while True:
+        try:
+            data = sess.run(input_fn)
+            y_test.append(data[1][0])
+        except tf.errors.OutOfRangeError:
+            break
+    y_test = np.asarray(y_test)
+    tf.logging.debug(y_test.shape)
+
+    evaluation_summary(y_test, test_predicted_classes, plot_cm=True)
+
 
 if __name__ == "__main__":
-
-    # Sanity check
-    print(evaluation_summary([1, 1, -1], [-1, 1, -1]))
+    tf.logging.set_verbosity(tf.logging.INFO)
+    tf.app.run()

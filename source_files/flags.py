@@ -1,16 +1,7 @@
-#!/usr/bin/env python
-
 import tensorflow as tf
-
 from pathlib import Path
 
-from data_utils import train_cnn_input_fn, train_input_fn, run_dataset_through_network
-from vgg_network import VGG_Network
-from estimator_svdd_naive import _LoadPreTrainedWeightsVGG
-from estimator_svdd_naive import OCClassifier as SVDDClassifier
-
-
-FLAGS = tf.flags.FLAGS
+# Common flags
 
 # Inputs params
 tf.flags.DEFINE_integer('class_nbr', 6,
@@ -32,8 +23,10 @@ tf.flags.DEFINE_float('learning_rate', 0.1,
 tf.flags.DEFINE_float('c', 3,
                       lower_bound=0,
                       help='C parameter for the hardness of the margin.')
+tf.flags.DEFINE_enum('type', 'svdd', ['svdd', 'ocsvm'],
+                     help='Type of the classifier: SVDD (hypersphere) or OCSVM (hyperplane).')
 
-# Train params
+# Train / test params
 tf.flags.DEFINE_string('cnn_output_dir', str(Path(__file__).parent / '../tmp/cnn_output/VGG16'),
                        help='Where the cached files are located, if using the cached mode')
 tf.flags.DEFINE_integer('batch_size', 64,
@@ -42,42 +35,8 @@ tf.flags.DEFINE_integer('batch_size', 64,
 tf.flags.DEFINE_integer('epochs', 100,
                         lower_bound=0,
                         help='Number of epochs.')
-tf.flags.DEFINE_string('train_dir', str(Path(__file__).parent / '../tmp/estimator'),
+tf.flags.DEFINE_string('model_dir', str(Path(__file__).parent / '../tmp/estimator'),
                        help='Where to write events and checkpoints.')
 
 
-def main(argv=None):
-    train_hooks = []
-
-    if FLAGS.mode == 'cached':
-        input_fn_train = lambda: train_cnn_input_fn(FLAGS.class_nbr, FLAGS.cnn_output_dir)\
-                                 .repeat(FLAGS.epochs).batch(FLAGS.batch_size)
-    else:
-        vgg_net = VGG_Network(include_FC_head=False)
-
-        input_fn_train = lambda: run_dataset_through_network(
-                                     train_input_fn(FLAGS.class_nbr, FLAGS.target_width) \
-                                         .repeat(FLAGS.epochs).batch(FLAGS.batch_size),
-                                     vgg_net
-                                 )
-
-        train_hooks.append(_LoadPreTrainedWeightsVGG(vgg_net))
-
-    tf.logging.info('Creating the classifier\n\n')
-    classifier = SVDDClassifier(
-        c=FLAGS.c,
-        kernel=FLAGS.kernel,
-        learning_rate=FLAGS.learning_rate,
-        model_dir=FLAGS.train_dir,
-    )
-
-    tf.logging.info('Training the classifier\n\n')
-    classifier.train(
-        input_fn=input_fn_train,
-        hooks=train_hooks
-    )
-
-
-if __name__ == '__main__':
-    tf.logging.set_verbosity(tf.logging.INFO)
-    tf.app.run()
+FLAGS = tf.flags.FLAGS
