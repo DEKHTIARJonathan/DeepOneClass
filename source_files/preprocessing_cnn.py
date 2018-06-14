@@ -64,7 +64,7 @@ if __name__ == "__main__":
 
     # TODO: utiliser les flags, et enregistrer les resultats
     from vgg_network import VGG_Network
-    from data_utils import train_input_fn, get_csv_dataset
+    from data_utils import train_img_dataset, get_csv_dataset
 
     tf.logging.set_verbosity(tf.logging.DEBUG)
 
@@ -81,7 +81,7 @@ if __name__ == "__main__":
 
     # Dataset iterator get_next
     train_csv_path = os.path.join("..", "data/DAGM 2007 - Splitted", str(class_nbr), "{}_files.csv".format("train"))
-    input_fn_images = train_input_fn(class_nbr, target_w)
+    input_fn_images = train_img_dataset(class_nbr, target_w)
     input_fn_filenames = get_csv_dataset(train_csv_path, class_nbr).map(lambda fn, label: fn)
     input_fn = tf.data.Dataset.zip((input_fn_filenames, input_fn_images)).batch(batch_size)
     iterator_op = input_fn.make_one_shot_iterator().get_next()

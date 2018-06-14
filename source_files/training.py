@@ -2,7 +2,7 @@
 
 import tensorflow as tf
 
-from data_utils import train_cnn_input_fn, train_input_fn, run_dataset_through_network
+from data_utils import train_cached_features_dataset, train_img_dataset, run_dataset_through_network
 from data_utils import _LoadPreTrainedWeights
 from vgg_network import VGG_Network
 from estimator_svdd import SVDDClassifier as SVDDClassifier
@@ -12,13 +12,13 @@ def main(argv=None):
     train_hooks = []
 
     if FLAGS.mode == 'cached':
-        input_fn_train = lambda: train_cnn_input_fn(FLAGS.class_nbr, FLAGS.cnn_output_dir)\
+        input_fn_train = lambda: train_cached_features_dataset(FLAGS.class_nbr, FLAGS.cnn_output_dir)\
                                  .repeat(FLAGS.epochs).batch(FLAGS.batch_size)
     else:
         vgg_net = VGG_Network(include_FC_head=False)
 
         input_fn_train = lambda: run_dataset_through_network(
-                                     train_input_fn(FLAGS.class_nbr, FLAGS.target_width)\
+                                     train_img_dataset(FLAGS.class_nbr, FLAGS.target_width)\
                                          .repeat(FLAGS.epochs).batch(FLAGS.batch_size),
                                      vgg_net
                                  )

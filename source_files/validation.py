@@ -11,7 +11,7 @@ from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_sc
 
 from estimator_svdd import SVDDClassifier as SVDDClassifier
 from vgg_network import VGG_Network
-from data_utils import test_cnn_input_fn, test_input_fn, run_dataset_through_network
+from data_utils import test_cached_features_dataset, test_img_dataset, run_dataset_through_network
 from data_utils import _LoadPreTrainedWeights
 from flags import FLAGS
 
@@ -73,13 +73,13 @@ def main(argv=None):
     train_hooks = []
 
     if FLAGS.mode == 'cached':
-        input_fn_test = lambda: test_cnn_input_fn(FLAGS.class_nbr, FLAGS.cnn_output_dir)\
+        input_fn_test = lambda: test_cached_features_dataset(FLAGS.class_nbr, FLAGS.cnn_output_dir)\
                                  .batch(FLAGS.batch_size)
     else:
         vgg_net = VGG_Network(include_FC_head=False)
 
         input_fn_test = lambda: run_dataset_through_network(
-                                     test_input_fn(FLAGS.class_nbr, FLAGS.target_width)\
+                                     test_img_dataset(FLAGS.class_nbr, FLAGS.target_width)\
                                          .batch(FLAGS.batch_size),
                                      vgg_net
                                  )
@@ -104,7 +104,7 @@ def main(argv=None):
     test_predicted_classes = np.asarray(list(map(lambda p: p["predicted_classes"], predictions))).astype(np.int32)
 
     y_test = []
-    input_fn = test_cnn_input_fn(FLAGS.class_nbr, FLAGS.cnn_output_dir).batch(1)
+    input_fn = test_cached_features_dataset(FLAGS.class_nbr, FLAGS.cnn_output_dir).batch(1)
     input_fn = input_fn.make_one_shot_iterator().get_next()
     sess = tf.Session()
     while True:

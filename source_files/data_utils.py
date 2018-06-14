@@ -244,7 +244,7 @@ if __name__ == '__main__':
 
         print("load_and_transf_img")
         img = sess.run(load_and_transf_img(os.path.join(os.path.dirname(os.path.realpath(__file__)),
-                                                        '../data/DAGM 2007 - Splitted/6/test/001.png', 224)))
+                                                        '../data/DAGM 2007 - Splitted/6/test/001.png'), 224))
         assert isinstance(img, np.ndarray)
 
         print("get_csv_dataset")
@@ -256,7 +256,7 @@ if __name__ == '__main__':
         res = dataset.make_one_shot_iterator().get_next()
         assert len(res) == 2
 
-        print("train_input_fn")
+        print("train_img_dataset")
         dataset = train_img_dataset(CLASS_NBR, TARGET_W)
         dataset = dataset.batch(1)
         iterator = dataset.make_one_shot_iterator().get_next()
@@ -264,7 +264,7 @@ if __name__ == '__main__':
         assert len(t) == 1
         assert isinstance(img, np.ndarray)
 
-        print("test_input_fn")
+        print("test_img_dataset")
         dataset = test_img_dataset(CLASS_NBR, TARGET_W)
         dataset = dataset.batch(1)
         iterator = dataset.make_one_shot_iterator().get_next()
@@ -273,13 +273,13 @@ if __name__ == '__main__':
         assert isinstance(t[0], np.ndarray)
         assert isinstance(t[1], np.ndarray)
 
-        print("train_cnn_input_fn")
+        print("train_cached_features_dataset")
         dataset = train_cached_features_dataset(CLASS_NBR, CNN_OUTPUT_DIR)
         dataset = dataset.batch(2)
         iterator = dataset.make_one_shot_iterator().get_next()
         t = sess.run(iterator)
 
-        print("test_cnn_input_fn")
+        print("test_cached_features_dataset")
         dataset = test_cached_features_dataset(CLASS_NBR, CNN_OUTPUT_DIR)
         dataset = dataset.batch(2)
         iterator = dataset.make_one_shot_iterator().get_next()
