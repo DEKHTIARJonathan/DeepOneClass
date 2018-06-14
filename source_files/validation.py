@@ -9,10 +9,10 @@ from matplotlib import pyplot as plt
 
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
 
-from estimator_svdd import OCClassifier as SVDDClassifier
-from estimator_svdd import _LoadPreTrainedWeightsVGG
+from estimator_svdd import SVDDClassifier as SVDDClassifier
 from vgg_network import VGG_Network
 from data_utils import test_cnn_input_fn, test_input_fn, run_dataset_through_network
+from data_utils import _LoadPreTrainedWeights
 from flags import FLAGS
 
 def plot_confusion_matrix(cm, classes,
@@ -84,7 +84,7 @@ def main(argv=None):
                                      vgg_net
                                  )
 
-        train_hooks.append(_LoadPreTrainedWeightsVGG(vgg_net))
+        train_hooks.append(_LoadPreTrainedWeights(vgg_net))
 
     tf.logging.info('Creating the classifier\n\n')
     classifier = SVDDClassifier(

@@ -5,6 +5,18 @@ import pandas as pd
 import tensorflow as tf
 from functools import partial
 
+class _LoadPreTrainedWeights(tf.train.SessionRunHook):
+    def __init__(self, model, weights_path='weights/vgg16_weights.npz'):
+        self._model = model
+        self._weights_path = weights_path
+
+    def after_create_session(self, session, coord):
+        session.run(self._ops)
+        tf.logging.info("model pretrained weights are assigned")
+
+    def begin(self):
+        self._ops = self._model.get_ops_load_pretrained(self._weights_path)
+
 
 ############################################
 #

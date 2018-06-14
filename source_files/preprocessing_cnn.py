@@ -62,6 +62,7 @@ def run_images_in_cnn(iterator_op, input_plh, network_outputs, output_dir, hooks
 
 if __name__ == "__main__":
 
+    # TODO: utiliser les flags, et enregistrer les resultats
     from vgg_network import VGG_Network
     from data_utils import train_input_fn, get_csv_dataset
 

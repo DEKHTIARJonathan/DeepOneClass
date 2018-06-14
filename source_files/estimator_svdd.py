@@ -1,18 +1,5 @@
 import tensorflow as tf
 
-
-class _LoadPreTrainedWeightsVGG(tf.train.SessionRunHook):
-    def __init__(self, vgg_model):
-        self._vgg_model = vgg_model
-
-    def after_create_session(self, session, coord):
-        session.run(self.ops)
-        tf.logging.info("vgg_model pretrained weights are assigned")
-
-    def begin(self):
-        self.ops = self._vgg_model.get_ops_load_pretrained('weights/vgg16_weights.npz')
-
-
 def naive_svdd_model_fn(features, labels, mode, params):
     """
     Naive SVDD
@@ -32,71 +19,72 @@ def naive_svdd_model_fn(features, labels, mode, params):
 
     features.set_shape((None, input_size))
 
-    if params["kernel"] == "linear":
-        out_size = input_size
-        mapped_inputs = features
-    elif params["kernel"] in ["rffm", "rbf"]:
-        out_size = params["rffm_dims"] if "rffm_dims" in params else input_size
-        kernel_mapper = tf.contrib.kernel_methods.RandomFourierFeatureMapper(
-            input_dim=input_size,
-            output_dim=out_size,
-            stddev=params["rffm_stddev"],
-            name="rffm"
-        )
-        mapped_inputs = kernel_mapper.map(features)
-    else:
-        raise ValueError("Map function {} not implemented.".format(params["kernel"]))
+    with tf.variable_scope('SVDD'):
+        if params["kernel"] == "linear":
+            out_size = input_size
+            mapped_inputs = features
+        elif params["kernel"] in ["rffm", "rbf"]:
+            out_size = params["rffm_dims"] if "rffm_dims" in params else input_size
+            kernel_mapper = tf.contrib.kernel_methods.RandomFourierFeatureMapper(
+                input_dim=input_size,
+                output_dim=out_size,
+                stddev=params["rffm_stddev"],
+                name="rffm"
+            )
+            mapped_inputs = kernel_mapper.map(features)
+        else:
+            raise ValueError("Map function {} not implemented.".format(params["kernel"]))
 
-    # Model variables
-    R = tf.Variable(tf.random_normal([], mean=10), dtype=tf.float32, name="Radius")
-    a = tf.Variable(tf.random_normal([out_size], mean=5), dtype=tf.float32, name="Center")
+        # Model variables
+        R = tf.Variable(tf.random_normal([], mean=10), dtype=tf.float32, name="Radius")
+        a = tf.Variable(tf.random_normal([out_size], mean=5), dtype=tf.float32, name="Center")
 
-    C = tf.constant(params["c"], dtype=tf.float32)
+        C = tf.constant(params["c"], dtype=tf.float32)
 
-    # Loss
-    constraint = tf.square(R) - tf.square(tf.norm(mapped_inputs - a, axis=1))
-    loss = tf.square(R) - C * tf.reduce_mean(tf.minimum(constraint, 0.0))
+        # Loss
+        constraint = tf.square(R) - tf.square(tf.norm(mapped_inputs - a, axis=1))
+        loss = tf.square(R) - C * tf.reduce_mean(tf.minimum(constraint, 0.0))
 
-    predicted_classes = tf.sign(constraint)
+        predicted_classes = tf.sign(constraint)
 
-    tf.summary.scalar('loss', loss)
-    tf.summary.scalar('radius', R)
-    tf.summary.scalar('center_norm', tf.norm(a))
+        tf.summary.scalar('loss', loss)
+        tf.summary.scalar('radius', R)
+        tf.summary.scalar('center_norm', tf.norm(a))
 
-    if mode == tf.estimator.ModeKeys.PREDICT:
-        predictions = {
-            'predicted_scores': constraint,
-            'predicted_classes': predicted_classes
-        }
-        return tf.estimator.EstimatorSpec(mode, predictions=predictions)
+        if mode == tf.estimator.ModeKeys.PREDICT:
+            predictions = {
+                'predicted_scores': constraint,
+                'predicted_classes': predicted_classes
+            }
+            return tf.estimator.EstimatorSpec(mode, predictions=predictions)
 
-    elif mode == tf.estimator.ModeKeys.EVAL:
-        # Compute evaluation metrics.
-        accuracy = tf.metrics.accuracy(labels=labels,
-                                       predictions=predicted_classes,
-                                       name='acc_op')
-        metrics = {'accuracy': accuracy}
-        return tf.estimator.EstimatorSpec(mode, loss=loss, eval_metric_ops=metrics)
+        elif mode == tf.estimator.ModeKeys.EVAL:
+            # Compute evaluation metrics.
+            accuracy = tf.metrics.accuracy(labels=labels,
+                                           predictions=predicted_classes,
+                                           name='acc_op')
+            metrics = {'accuracy': accuracy}
+            return tf.estimator.EstimatorSpec(mode, loss=loss, eval_metric_ops=metrics)
 
-    elif mode == tf.estimator.ModeKeys.TRAIN:
-        lr = params["learning_rate"] if "learning_rate" in params else 0.1
-        optimizer = tf.train.AdamOptimizer(lr)
+        elif mode == tf.estimator.ModeKeys.TRAIN:
+            lr = params["learning_rate"] if "learning_rate" in params else 0.1
+            optimizer = tf.train.AdamOptimizer(lr)
 
-        grads = optimizer.compute_gradients(loss, [R, a])
-        train_op = optimizer.apply_gradients(grads, global_step=tf.train.get_global_step())
+            grads = optimizer.compute_gradients(loss, [R, a])
+            train_op = optimizer.apply_gradients(grads, global_step=tf.train.get_global_step())
 
-        tf.summary.scalar('grad_radius', grads[0][0])
-        # tf.summary.scalar('grad_center', grads[1][0])
-
-
-
-        return tf.estimator.EstimatorSpec(mode, loss=loss, train_op=train_op)
-
-    else:
-        tf.logging.error("Mode not recognized: {}".format(mode))
+            tf.summary.scalar('grad_radius', grads[0][0])
+            # tf.summary.scalar('grad_center', grads[1][0])
 
 
-class OCClassifier(tf.estimator.Estimator):
+
+            return tf.estimator.EstimatorSpec(mode, loss=loss, train_op=train_op)
+
+        else:
+            tf.logging.error("Mode not recognized: {}".format(mode))
+
+
+class SVDDClassifier(tf.estimator.Estimator):
     def __init__(self,
                  c=2.0,
                  kernel="linear",
@@ -120,7 +108,7 @@ class OCClassifier(tf.estimator.Estimator):
         assert input_size is None or input_size > 0
         assert c > 0
 
-        super(OCClassifier, self).__init__(
+        super(SVDDClassifier, self).__init__(
             model_fn=naive_svdd_model_fn,
             params={
                "c": c,
