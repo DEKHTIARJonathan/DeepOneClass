@@ -6,7 +6,7 @@ import tensorflow as tf
 from functools import partial
 
 class _LoadPreTrainedWeights(tf.train.SessionRunHook):
-    def __init__(self, model, weights_path='weights/vgg16_weights.npz'):
+    def __init__(self, model, weights_path='../weights/vgg16_weights.npz'):
         self._model = model
         self._weights_path = weights_path
 
@@ -116,7 +116,7 @@ def get_csv_dataset(csv_path, class_nbr):
 #
 ############################################
 
-def _input_fn(class_nbr, target_w, type="train", keep_label=False):
+def _img_dataset(class_nbr, target_w, type="train", keep_label=False):
     """Return ready Dataset to turn into iterator"""
 
     # Get filenames
@@ -137,14 +137,14 @@ def _input_fn(class_nbr, target_w, type="train", keep_label=False):
     return dataset
 
 
-def train_input_fn(class_nbr, target_w):
+def train_img_dataset(class_nbr, target_w):
     """Return Dataset on train dataset: get_next() -> ([image * batch_size])"""
-    return _input_fn(class_nbr, target_w, type="train", keep_label=False)
+    return _img_dataset(class_nbr, target_w, type="train", keep_label=False)
 
 
-def test_input_fn(class_nbr, target_w):
+def test_img_dataset(class_nbr, target_w):
     """Return Dataset on train dataset: get_next() -> ([image * batch_size], [label * batch_size])"""
-    return _input_fn(class_nbr, target_w, type="test", keep_label=True)
+    return _img_dataset(class_nbr, target_w, type="test", keep_label=True)
 
 
 ############################################
@@ -153,7 +153,7 @@ def test_input_fn(class_nbr, target_w):
 #
 ############################################
 
-def _cnn_input_fn(class_nbr, cnn_output_dir, type="train", keep_label=False):
+def _cached_features_dataset(class_nbr, cnn_output_dir, type="train", keep_label=False):
     """Return ready Dataset to turn into iterator"""
 
     # Get filenames path
@@ -195,9 +195,9 @@ def _cnn_input_fn(class_nbr, cnn_output_dir, type="train", keep_label=False):
     return dataset
 
 
-def train_cnn_input_fn(class_nbr, cnn_output_dir):
+def train_cached_features_dataset(class_nbr, cnn_output_dir):
     """Return Dataset on train dataset: get_next() -> ([image * batch_size])"""
-    return _cnn_input_fn(
+    return _cached_features_dataset(
         class_nbr,
         cnn_output_dir,
         type="train",
@@ -205,9 +205,9 @@ def train_cnn_input_fn(class_nbr, cnn_output_dir):
     )
 
 
-def test_cnn_input_fn(class_nbr, cnn_output_dir):
+def test_cached_features_dataset(class_nbr, cnn_output_dir):
     """Return Dataset on test dataset: get_next() -> ([image * batch_size], [label * batch_size])"""
-    return _cnn_input_fn(
+    return _cached_features_dataset(
         class_nbr,
         cnn_output_dir,
         type="test",
@@ -257,7 +257,7 @@ if __name__ == '__main__':
         assert len(res) == 2
 
         print("train_input_fn")
-        dataset = train_input_fn(CLASS_NBR, TARGET_W)
+        dataset = train_img_dataset(CLASS_NBR, TARGET_W)
         dataset = dataset.batch(1)
         iterator = dataset.make_one_shot_iterator().get_next()
         t = sess.run(iterator)
@@ -265,7 +265,7 @@ if __name__ == '__main__':
         assert isinstance(img, np.ndarray)
 
         print("test_input_fn")
-        dataset = test_input_fn(CLASS_NBR, TARGET_W)
+        dataset = test_img_dataset(CLASS_NBR, TARGET_W)
         dataset = dataset.batch(1)
         iterator = dataset.make_one_shot_iterator().get_next()
         t = sess.run(iterator)
@@ -274,13 +274,13 @@ if __name__ == '__main__':
         assert isinstance(t[1], np.ndarray)
 
         print("train_cnn_input_fn")
-        dataset = train_cnn_input_fn(CLASS_NBR, CNN_OUTPUT_DIR)
+        dataset = train_cached_features_dataset(CLASS_NBR, CNN_OUTPUT_DIR)
         dataset = dataset.batch(2)
         iterator = dataset.make_one_shot_iterator().get_next()
         t = sess.run(iterator)
 
         print("test_cnn_input_fn")
-        dataset = test_cnn_input_fn(CLASS_NBR, CNN_OUTPUT_DIR)
+        dataset = test_cached_features_dataset(CLASS_NBR, CNN_OUTPUT_DIR)
         dataset = dataset.batch(2)
         iterator = dataset.make_one_shot_iterator().get_next()
         t = sess.run(iterator)

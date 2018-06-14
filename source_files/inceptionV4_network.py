@@ -73,7 +73,7 @@ class InceptionV4_Network(object):
 
             return network, conv_outs
 
-    def load_pretrained(self, sess, weights_path='weights/inception_v4.ckpt'):
+    def load_pretrained(self, sess, weights_path='../weights/inception_v4.ckpt'):
 
         tf.logging.info("Loading InceptionV4 Net weights ...")
 
