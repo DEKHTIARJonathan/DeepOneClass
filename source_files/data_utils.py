@@ -51,7 +51,8 @@ def csv_generator(csv_path, class_nbr):
     """Generator csv files"""
     df = pd.read_csv(csv_path, sep=",")
     for index, row in df.iterrows():
-        img_path = os.path.join('..', 'data/DAGM 2007 - Splitted', str(class_nbr), row['target'].replace("\\", "/"))
+        img_path = os.path.join(os.path.dirname(os.path.realpath(__file__)),
+                                '..', 'data/DAGM 2007 - Splitted', str(class_nbr), row['target'].replace("\\", "/"))
         label = row['is_healthy']
         yield (img_path, label)
 
@@ -107,7 +108,8 @@ def _input_fn(class_nbr, target_w, type="train", keep_label=False):
     """Return ready Dataset to turn into iterator"""
 
     # Get filenames
-    csv_path = os.path.join("..", "data/DAGM 2007 - Splitted", str(class_nbr), "{}_files.csv".format(type))
+    csv_path = os.path.join(os.path.dirname(os.path.realpath(__file__)),
+                            "..", "data/DAGM 2007 - Splitted", str(class_nbr), "{}_files.csv".format(type))
     dataset = get_csv_dataset(csv_path, class_nbr)
 
     # Open and transform original images
@@ -143,7 +145,8 @@ def _cnn_input_fn(class_nbr, cnn_output_dir, type="train", keep_label=False):
     """Return ready Dataset to turn into iterator"""
 
     # Get filenames path
-    csv_path = os.path.join("..", "data/DAGM 2007 - Splitted", str(class_nbr), "{}_files.csv".format(type))
+    csv_path = os.path.join(os.path.dirname(os.path.realpath(__file__)),
+                            "..", "data/DAGM 2007 - Splitted", str(class_nbr), "{}_files.csv".format(type))
     dataset = get_csv_dataset(csv_path, class_nbr)
 
     # Get exact filename
@@ -210,6 +213,7 @@ def run_dataset_through_network(dataset, network, reuse=False):
     return dataset.map(lambda img: (network(img, reuse=reuse)).outputs)
 
 
+
 ############################################
 #
 # Sanity checks
@@ -227,12 +231,14 @@ if __name__ == '__main__':
     with tf.Session() as sess:
 
         print("load_and_transf_img")
-        img = sess.run(load_and_transf_img('../data/DAGM 2007 - Splitted/6/test/001.png', 224))
+        img = sess.run(load_and_transf_img(os.path.join(os.path.dirname(os.path.realpath(__file__)),
+                                                        '../data/DAGM 2007 - Splitted/6/test/001.png', 224)))
         assert isinstance(img, np.ndarray)
 
         print("get_csv_dataset")
         dataset = get_csv_dataset(
-            os.path.join('..', 'data/DAGM 2007 - Splitted', str(CLASS_NBR), 'train_files.csv'),
+            os.path.join(os.path.dirname(os.path.realpath(__file__)),
+                         '..', 'data/DAGM 2007 - Splitted', str(CLASS_NBR), 'train_files.csv'),
             CLASS_NBR
         ).batch(1)
         res = dataset.make_one_shot_iterator().get_next()
