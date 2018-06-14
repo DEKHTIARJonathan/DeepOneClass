@@ -114,6 +114,7 @@ checkpoints/
 logs/
 samples/
 
-# Wieghts and Checkpoints
+# Weights and Checkpoints
 source_files/weights/*.npz
 source_files/weights/*.ckpt
+weights/*

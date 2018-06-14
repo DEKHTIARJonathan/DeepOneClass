@@ -6,7 +6,7 @@ import tensorflow as tf
 from functools import partial
 
 class _LoadPreTrainedWeights(tf.train.SessionRunHook):
-    def __init__(self, model, weights_path='weights/vgg16_weights.npz'):
+    def __init__(self, model, weights_path='../weights/vgg16_weights.npz'):
         self._model = model
         self._weights_path = weights_path
 
