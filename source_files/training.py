@@ -12,16 +12,21 @@ def main(argv=None):
     train_hooks = []
 
     if FLAGS.mode == 'cached':
-        input_fn_train = lambda: train_cached_features_dataset(FLAGS.class_nbr, FLAGS.cnn_output_dir)\
-                                 .repeat(FLAGS.epochs).batch(FLAGS.batch_size)
+        def input_fn_train():
+            with tf.name_scope('input_dataset'):
+                dataset = train_cached_features_dataset(FLAGS.class_nbr, FLAGS.cnn_output_dir)
+                dataset = dataset.repeat(FLAGS.epochs).batch(FLAGS.batch_size)
+                return dataset
+
     else:
         vgg_net = VGG_Network(include_FC_head=False)
 
-        input_fn_train = lambda: run_dataset_through_network(
-                                     train_img_dataset(FLAGS.class_nbr, FLAGS.target_width)\
-                                         .repeat(FLAGS.epochs).batch(FLAGS.batch_size),
-                                     vgg_net
-                                 )
+        def input_fn_train():
+            with tf.name_scope('input_dataset'):
+                dataset = train_img_dataset(FLAGS.class_nbr, FLAGS.target_width)
+                dataset = dataset.repeat(FLAGS.epochs).batch(FLAGS.batch_size)
+                dataset = run_dataset_through_network(dataset, vgg_net)
+                return dataset
 
         train_hooks.append(_LoadPreTrainedWeights(vgg_net))
 
@@ -33,7 +38,7 @@ def main(argv=None):
         model_dir=FLAGS.model_dir,
     )
 
-    tf.logging.info('Validating the classifier\n\n')
+    tf.logging.info('Training the classifier\n\n')
     classifier.train(
         input_fn=input_fn_train,
         hooks=train_hooks

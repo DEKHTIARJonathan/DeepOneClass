@@ -29,7 +29,7 @@ def plot_confusion_matrix(cm, classes,
     else:
         print('Confusion matrix, without normalization')
 
-    print(cm)
+    tf.logging.info(cm)
 
     plt.imshow(cm, interpolation='nearest', cmap=cmap)
     plt.title(title)
@@ -114,7 +114,7 @@ def main(argv=None):
         except tf.errors.OutOfRangeError:
             break
     y_test = np.asarray(y_test)
-    tf.logging.debug(y_test.shape)
+    tf.logging.info(y_test.shape)
 
     evaluation_summary(y_test, test_predicted_classes, plot_cm=True)
 

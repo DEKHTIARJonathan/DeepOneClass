@@ -13,7 +13,8 @@ tf.flags.DEFINE_enum('mode', 'cached', ['direct', 'cached'],
 tf.flags.DEFINE_integer('target_width', 224,
                         lower_bound=0,
                         help='End width after transforming images.')
-
+tf.flags.DEFINE_string('data_dir', str(Path(__file__).parent / '../data/DAGM 2007 - Splitted'),
+                       help='Where the images are stored (by class and by train / test).')
 # Model params
 tf.flags.DEFINE_enum('kernel', 'linear', ['linear', 'rbf', 'rffm'],
                      help='Approximation of the SVM kernel.')

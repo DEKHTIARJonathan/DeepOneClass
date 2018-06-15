@@ -2,6 +2,10 @@ import os
 import numpy as np
 import tensorflow as tf
 
+from flags import FLAGS
+from vgg_network import VGG_Network
+from data_utils import train_img_dataset, test_img_dataset, get_csv_dataset
+
 # Two ways to pass through the tensorlayer network
 # tl.utils.predict(...)
 # sess.run(network.outputs, feed_dict={input_plh: images})
@@ -20,7 +24,6 @@ def run_images_in_cnn(iterator_op, input_plh, network_outputs, output_dir, hooks
 
     :return: the total number of processed images
     """
-
 
     tf.logging.info("Running images through the network and saving results in %s" % output_dir)
     if output_dir:
@@ -60,18 +63,11 @@ def run_images_in_cnn(iterator_op, input_plh, network_outputs, output_dir, hooks
     return i
 
 
-if __name__ == "__main__":
+def main(argv=None):
+    input_shape = [None, FLAGS.target_width, FLAGS.target_width, 3]
 
-    # TODO: utiliser les flags, et enregistrer les resultats
-    from vgg_network import VGG_Network
-    from data_utils import train_img_dataset, get_csv_dataset
-
-    tf.logging.set_verbosity(tf.logging.DEBUG)
-
-    class_nbr = 6
-    target_w = 224
-    input_shape = [None, target_w, target_w, 3]
-    batch_size = 2
+    if not os.path.exists(FLAGS.cnn_output_dir):
+        os.makedirs(FLAGS.cnn_output_dir)
 
     # Network
     input_plh = tf.placeholder(tf.float32, shape=input_shape, name="X")
@@ -79,21 +75,48 @@ if __name__ == "__main__":
     vgg_network = vgg_model(input_plh)
     network_outputs = vgg_network.outputs
 
-    # Dataset iterator get_next
-    train_csv_path = os.path.join("..", "data/DAGM 2007 - Splitted", str(class_nbr), "{}_files.csv".format("train"))
-    input_fn_images = train_img_dataset(class_nbr, target_w)
-    input_fn_filenames = get_csv_dataset(train_csv_path, class_nbr).map(lambda fn, label: fn)
-    input_fn = tf.data.Dataset.zip((input_fn_filenames, input_fn_images)).batch(batch_size)
-    iterator_op = input_fn.make_one_shot_iterator().get_next()
-
     hook_load_pretrained = lambda sess: vgg_model.load_pretrained(sess)
 
-    # output_dir can be None (predictions not saved)
+    # Train Dataset
+    train_csv_path = os.path.join(FLAGS.data_dir, str(FLAGS.class_nbr), "{}_files.csv".format("train"))
+    input_fn_images = train_img_dataset(FLAGS.class_nbr, FLAGS.target_width)
+    input_fn_filenames = get_csv_dataset(train_csv_path, FLAGS.class_nbr).map(lambda fn, label: fn)
+    input_fn = tf.data.Dataset.zip((input_fn_filenames, input_fn_images)).batch(FLAGS.batch_size)
+    iterator_op = input_fn.make_one_shot_iterator().get_next()
+
+    # Target directory
+    vgg16_train_output_dir = os.path.join(FLAGS.cnn_output_dir, '{}/{}/train'.format('VGG16', FLAGS.class_nbr))
+    if not os.path.exists(vgg16_train_output_dir):
+        os.makedirs(vgg16_train_output_dir)
+
     run_images_in_cnn(
         iterator_op,
         input_plh,
         network_outputs,
-        None,
+        vgg16_train_output_dir,
         hooks=[hook_load_pretrained]
     )
 
+    # Test Dataset
+    test_csv_path = os.path.join(FLAGS.data_dir, str(FLAGS.class_nbr), "{}_files.csv".format("train"))
+    input_fn_images = test_img_dataset(FLAGS.class_nbr, FLAGS.target_width).map(lambda img, label: img)
+    input_fn_filenames = get_csv_dataset(test_csv_path, FLAGS.class_nbr).map(lambda fn, label: fn)
+    input_fn = tf.data.Dataset.zip((input_fn_filenames, input_fn_images)).batch(FLAGS.batch_size)
+    iterator_op = input_fn.make_one_shot_iterator().get_next()
+
+    # Target directory
+    vgg16_test_output_dir = os.path.join(FLAGS.cnn_output_dir, '{}/{}/test'.format('VGG16', FLAGS.class_nbr))
+    if not os.path.exists(vgg16_test_output_dir):
+        os.makedirs(vgg16_test_output_dir)
+
+    run_images_in_cnn(
+        iterator_op,
+        input_plh,
+        network_outputs,
+        vgg16_test_output_dir,
+        hooks=[hook_load_pretrained]
+    )
+
+if __name__ == "__main__":
+    tf.logging.set_verbosity(tf.logging.DEBUG)
+    tf.app.run()

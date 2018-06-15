@@ -92,6 +92,7 @@ class SVDDClassifier(tf.estimator.Estimator):
                  rffm_stddev=None,
                  learning_rate=0.1,
                  input_size=None,
+                 name='SVDD',
                  *args, **kwargs):
         """
         :param c: Regularization parameter

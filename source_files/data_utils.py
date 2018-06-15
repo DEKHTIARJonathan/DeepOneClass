@@ -5,6 +5,8 @@ import pandas as pd
 import tensorflow as tf
 from functools import partial
 
+from flags import FLAGS
+
 class _LoadPreTrainedWeights(tf.train.SessionRunHook):
     def __init__(self, model, weights_path='../weights/vgg16_weights.npz'):
         self._model = model
@@ -63,8 +65,7 @@ def csv_generator(csv_path, class_nbr):
     """Generator csv files"""
     df = pd.read_csv(csv_path, sep=",")
     for index, row in df.iterrows():
-        img_path = os.path.join(os.path.dirname(os.path.realpath(__file__)),
-                                '..', 'data/DAGM 2007 - Splitted', str(class_nbr), row['target'].replace("\\", "/"))
+        img_path = os.path.join(FLAGS.data_dir, str(class_nbr), row['target'].replace("\\", "/"))
         label = row['is_healthy']
         yield (img_path, label)
 
@@ -120,8 +121,7 @@ def _img_dataset(class_nbr, target_w, type="train", keep_label=False):
     """Return ready Dataset to turn into iterator"""
 
     # Get filenames
-    csv_path = os.path.join(os.path.dirname(os.path.realpath(__file__)),
-                            "..", "data/DAGM 2007 - Splitted", str(class_nbr), "{}_files.csv".format(type))
+    csv_path = os.path.join(FLAGS.data_dir, str(class_nbr), "{}_files.csv".format(type))
     dataset = get_csv_dataset(csv_path, class_nbr)
 
     # Open and transform original images
@@ -157,8 +157,7 @@ def _cached_features_dataset(class_nbr, cnn_output_dir, type="train", keep_label
     """Return ready Dataset to turn into iterator"""
 
     # Get filenames path
-    csv_path = os.path.join(os.path.dirname(os.path.realpath(__file__)),
-                            "..", "data/DAGM 2007 - Splitted", str(class_nbr), "{}_files.csv".format(type))
+    csv_path = os.path.join(FLAGS.data_dir, str(class_nbr), "{}_files.csv".format(type))
     dataset = get_csv_dataset(csv_path, class_nbr)
 
     # Get exact filename
@@ -229,7 +228,8 @@ def run_dataset_through_network(dataset, network, reuse=False):
 ############################################
 #
 # Sanity checks
-#
+# op on graphs tensorboard
+
 ############################################
 
 if __name__ == '__main__':
@@ -237,20 +237,18 @@ if __name__ == '__main__':
     tf.logging.set_verbosity(tf.logging.DEBUG)
 
     CLASS_NBR = 6
-    CNN_OUTPUT_DIR = os.path.join("..", "tmp", "cnn_output", "VGG16")
+    CNN_OUTPUT_DIR = os.path.join(FLAGS.cnn_output_dir, "VGG16")
     TARGET_W = 224
 
     with tf.Session() as sess:
 
         print("load_and_transf_img")
-        img = sess.run(load_and_transf_img(os.path.join(os.path.dirname(os.path.realpath(__file__)),
-                                                        '../data/DAGM 2007 - Splitted/6/test/001.png'), 224))
+        img = sess.run(load_and_transf_img(os.path.join(FLAGS.data_dir, '6/test/001.png'), 224))
         assert isinstance(img, np.ndarray)
 
         print("get_csv_dataset")
         dataset = get_csv_dataset(
-            os.path.join(os.path.dirname(os.path.realpath(__file__)),
-                         '..', 'data/DAGM 2007 - Splitted', str(CLASS_NBR), 'train_files.csv'),
+            os.path.join(FLAGS.data_dir, str(CLASS_NBR), 'train_files.csv'),
             CLASS_NBR
         ).batch(1)
         res = dataset.make_one_shot_iterator().get_next()
