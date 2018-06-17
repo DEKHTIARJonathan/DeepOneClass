@@ -11,27 +11,21 @@ from data_utils import train_img_dataset, test_img_dataset, get_csv_dataset
 # sess.run(network.outputs, feed_dict={input_plh: images})
 
 
-def run_images_in_cnn(iterator_op, input_plh, network_outputs, output_dir, hooks=None):
+def run_images_in_cnn(iterator_op, input_plh, network_outputs, output_path, hooks=None):
     """
     Passes all data from a batched dataset into a network and saves predictions in output_dir
 
     :param iterator_op: iterator.get_next() operation (the dataset has to be encoded by batch)
     :param input_plh: placeholder of the CNN input
     :param network_outputs: output tensor of the CNN (.outputs of last tensorlayer layer)
-    :param output_dir: where the .npy files are saved
+    :param output_path: where the .tfrecord files are saved
     :param hooks: list of functions to be called after the session is created and the
      variables initialized. The session is passed as a parameter
 
     :return: the total number of processed images
     """
 
-    tf.logging.info("Running images through the network and saving results in %s" % output_dir)
-    if output_dir:
-        tf.logging.info("Results will be saved to '%s'" % output_dir)
-    else:
-        tf.logging.warn("Results will not be saved")
-
-    with tf.Session() as sess:
+    with tf.Session() as sess, tf.python_io.TFRecordWriter(output_path) as writer:
         sess.run(tf.global_variables_initializer())
 
         if hooks:
@@ -42,17 +36,27 @@ def run_images_in_cnn(iterator_op, input_plh, network_outputs, output_dir, hooks
         try:
             while True:
                 # Consume input iterator (returns a batch)
-                path_and_images = sess.run(iterator_op)
-                filenames = list(map(lambda path: os.path.basename(path.decode('utf-8')), path_and_images[0]))
-                images = path_and_images[1]
+                [paths, labels, images] = sess.run(iterator_op)
+                filenames = list(map(lambda p: os.path.dirname(p.decode('utf-8')), paths))
 
                 predictions = sess.run(network_outputs, feed_dict={input_plh: images})
+                predictions = predictions.astype(np.float32)
 
                 # Save prediction
                 i += len(filenames)
-                if output_dir:
-                    for filename, prediction in zip(filenames, predictions):
-                        np.save(os.path.join(output_dir, "{}.npy".format(filename)), prediction)
+
+                if output_path:
+                    for filename, prediction, label in zip(filenames, predictions, labels):
+                        example = tf.train.Example(
+                            features=tf.train.Features(
+                                feature={
+                                    'filename': tf.train.Feature(bytes_list=tf.train.BytesList(value=[filename.encode('ascii')])),
+                                    'data': tf.train.Feature(bytes_list=tf.train.BytesList(value=[tf.compat.as_bytes(prediction.tostring())])),
+                                    'label': tf.train.Feature(int64_list=tf.train.Int64List(value=[label])),
+                                    'ndims': tf.train.Feature(int64_list=tf.train.Int64List(value=[prediction.shape[0]]))
+                                }))
+
+                        writer.write(example.SerializeToString())
 
                 if i % 100 == 0:
                     tf.logging.debug("Image {} has been passed through CNN".format(i))
@@ -80,40 +84,40 @@ def main(argv=None):
     # Train Dataset
     train_csv_path = os.path.join(FLAGS.data_dir, str(FLAGS.class_nbr), "{}_files.csv".format("train"))
     input_fn_images = train_img_dataset(FLAGS.class_nbr, FLAGS.target_width)
-    input_fn_filenames = get_csv_dataset(train_csv_path, FLAGS.class_nbr).map(lambda fn, label: fn)
-    input_fn = tf.data.Dataset.zip((input_fn_filenames, input_fn_images)).batch(FLAGS.batch_size)
+    input_fn_filenames_labels = get_csv_dataset(train_csv_path, FLAGS.class_nbr)
+    input_fn = tf.data.Dataset.zip((input_fn_filenames_labels, input_fn_images)).map(lambda fl, i: (fl[0], fl[1], i)).batch(FLAGS.batch_size)
     iterator_op = input_fn.make_one_shot_iterator().get_next()
 
     # Target directory
-    vgg16_train_output_dir = os.path.join(FLAGS.cnn_output_dir, '{}/{}/train'.format('VGG16', FLAGS.class_nbr))
-    if not os.path.exists(vgg16_train_output_dir):
-        os.makedirs(vgg16_train_output_dir)
+    vgg16_train_output = os.path.join(FLAGS.cnn_output_dir, str(FLAGS.class_nbr), 'train.tfrecord')
+    if not os.path.exists(os.path.dirname(vgg16_train_output)):
+        os.makedirs(os.path.dirname(vgg16_train_output))
 
     run_images_in_cnn(
         iterator_op,
         input_plh,
         network_outputs,
-        vgg16_train_output_dir,
+        vgg16_train_output,
         hooks=[hook_load_pretrained]
     )
 
     # Test Dataset
-    test_csv_path = os.path.join(FLAGS.data_dir, str(FLAGS.class_nbr), "{}_files.csv".format("train"))
+    test_csv_path = os.path.join(FLAGS.data_dir, str(FLAGS.class_nbr), "{}_files.csv".format("test"))
     input_fn_images = test_img_dataset(FLAGS.class_nbr, FLAGS.target_width).map(lambda img, label: img)
-    input_fn_filenames = get_csv_dataset(test_csv_path, FLAGS.class_nbr).map(lambda fn, label: fn)
-    input_fn = tf.data.Dataset.zip((input_fn_filenames, input_fn_images)).batch(FLAGS.batch_size)
+    input_fn_filenames_labels = get_csv_dataset(test_csv_path, FLAGS.class_nbr)
+    input_fn = tf.data.Dataset.zip((input_fn_filenames_labels, input_fn_images)).map(lambda fl, i: (fl[0], fl[1], i)).batch(FLAGS.batch_size)
     iterator_op = input_fn.make_one_shot_iterator().get_next()
 
     # Target directory
-    vgg16_test_output_dir = os.path.join(FLAGS.cnn_output_dir, '{}/{}/test'.format('VGG16', FLAGS.class_nbr))
-    if not os.path.exists(vgg16_test_output_dir):
-        os.makedirs(vgg16_test_output_dir)
+    vgg16_test_output = os.path.join(FLAGS.cnn_output_dir, str(FLAGS.class_nbr), 'test.tfrecord')
+    if not os.path.exists(os.path.dirname(vgg16_test_output)):
+        os.makedirs(os.path.dirname(vgg16_test_output))
 
     run_images_in_cnn(
         iterator_op,
         input_plh,
         network_outputs,
-        vgg16_test_output_dir,
+        vgg16_test_output,
         hooks=[hook_load_pretrained]
     )
 

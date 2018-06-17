@@ -13,6 +13,9 @@ tf.flags.DEFINE_enum('mode', 'cached', ['direct', 'cached'],
 tf.flags.DEFINE_integer('target_width', 224,
                         lower_bound=0,
                         help='End width after transforming images.')
+tf.flags.DEFINE_integer('cnn_out_dims', 25088,
+                        lower_bound=0,
+                        help='If cached, size of the CNN feature vectors.')
 tf.flags.DEFINE_string('data_dir', str(Path(__file__).parent / '../data/DAGM 2007 - Splitted'),
                        help='Where the images are stored (by class and by train / test).')
 # Model params

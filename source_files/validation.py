@@ -73,7 +73,7 @@ def main(argv=None):
     train_hooks = []
 
     if FLAGS.mode == 'cached':
-        input_fn_test = lambda: test_cached_features_dataset(FLAGS.class_nbr, FLAGS.cnn_output_dir)\
+        input_fn_test = lambda: test_cached_features_dataset(FLAGS.class_nbr, FLAGS.cnn_output_dir, FLAGS.cnn_out_dims)\
                                  .batch(FLAGS.batch_size)
     else:
         vgg_net = VGG_Network(include_FC_head=False)
@@ -104,7 +104,7 @@ def main(argv=None):
     test_predicted_classes = np.asarray(list(map(lambda p: p["predicted_classes"], predictions))).astype(np.int32)
 
     y_test = []
-    input_fn = test_cached_features_dataset(FLAGS.class_nbr, FLAGS.cnn_output_dir).batch(1)
+    input_fn = test_cached_features_dataset(FLAGS.class_nbr, FLAGS.cnn_output_dir, FLAGS.cnn_out_dims).batch(1)
     input_fn = input_fn.make_one_shot_iterator().get_next()
     sess = tf.Session()
     while True:
@@ -116,7 +116,8 @@ def main(argv=None):
     y_test = np.asarray(y_test)
     tf.logging.info(y_test.shape)
 
-    evaluation_summary(y_test, test_predicted_classes, plot_cm=True)
+    s = evaluation_summary(y_test, test_predicted_classes, plot_cm=True)
+    tf.logging.info(s)
 
 
 if __name__ == "__main__":
