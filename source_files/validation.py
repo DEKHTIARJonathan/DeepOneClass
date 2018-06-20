@@ -91,6 +91,8 @@ def main(argv=None):
         c=FLAGS.c,
         kernel=FLAGS.kernel,
         model_dir=FLAGS.model_dir,
+        rffm_dims=FLAGS.rffm_dims,
+        rffm_stddev=FLAGS.rffm_stddev
     )
 
     tf.logging.info('Predicting with the classifier\n\n')
