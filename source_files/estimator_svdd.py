@@ -74,7 +74,7 @@ def naive_svdd_model_fn(features, labels, mode, params):
             train_op = optimizer.apply_gradients(grads, global_step=tf.train.get_global_step())
 
             tf.summary.scalar('grad_radius', grads[0][0])
-            # tf.summary.scalar('grad_center', grads[1][0])
+            tf.summary.histogram('grad_center', grads[1][0])
 
 
 
@@ -92,7 +92,6 @@ class SVDDClassifier(tf.estimator.Estimator):
                  rffm_stddev=None,
                  learning_rate=0.1,
                  input_size=None,
-                 name='SVDD',
                  *args, **kwargs):
         """
         :param c: Regularization parameter

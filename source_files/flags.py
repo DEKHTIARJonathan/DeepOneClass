@@ -21,6 +21,10 @@ tf.flags.DEFINE_string('data_dir', str(Path(__file__).parent / '../data/DAGM 200
 # Model params
 tf.flags.DEFINE_enum('kernel', 'linear', ['linear', 'rbf', 'rffm'],
                      help='Approximation of the SVM kernel.')
+tf.flags.DEFINE_integer('rffm_dims', 1000,
+                        help='If using the RFFM map, number of dimensions to map to.')
+tf.flags.DEFINE_float('rffm_stddev', 0.5,
+                        help='If using the RFFM map, stddev of the RFFM.')
 tf.flags.DEFINE_float('learning_rate', 0.1,
                       lower_bound=0,
                       help='Starting value for the learning rate.')
