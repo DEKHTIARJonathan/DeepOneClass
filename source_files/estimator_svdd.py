@@ -67,7 +67,7 @@ def naive_svdd_model_fn(features, labels, mode, params):
             return tf.estimator.EstimatorSpec(mode, loss=loss, eval_metric_ops=metrics)
 
         elif mode == tf.estimator.ModeKeys.TRAIN:
-            lr = params["learning_rate"] if "q" in params else 0.1
+            lr = params["learning_rate"] if "learning_rate" in params else 0.1
             optimizer = tf.train.AdamOptimizer(lr)
 
             grads = optimizer.compute_gradients(loss, [R, a])
