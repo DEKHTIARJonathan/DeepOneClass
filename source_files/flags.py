@@ -13,11 +13,18 @@ tf.flags.DEFINE_enum('mode', 'cached', ['direct', 'cached'],
 tf.flags.DEFINE_integer('target_width', 224,
                         lower_bound=0,
                         help='End width after transforming images.')
+tf.flags.DEFINE_integer('cnn_out_dims', 25088,
+                        lower_bound=0,
+                        help='If cached, size of the CNN feature vectors.')
 tf.flags.DEFINE_string('data_dir', str(Path(__file__).parent / '../data/DAGM 2007 - Splitted'),
                        help='Where the images are stored (by class and by train / test).')
 # Model params
 tf.flags.DEFINE_enum('kernel', 'linear', ['linear', 'rbf', 'rffm'],
                      help='Approximation of the SVM kernel.')
+tf.flags.DEFINE_integer('rffm_dims', 1000,
+                        help='If using the RFFM map, number of dimensions to map to.')
+tf.flags.DEFINE_float('rffm_stddev', 0.5,
+                        help='If using the RFFM map, stddev of the RFFM.')
 tf.flags.DEFINE_float('learning_rate', 0.1,
                       lower_bound=0,
                       help='Starting value for the learning rate.')

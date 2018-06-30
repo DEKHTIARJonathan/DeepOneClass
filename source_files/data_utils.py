@@ -152,63 +152,58 @@ def test_img_dataset(class_nbr, target_w):
 # Pipelines for already encoded images
 #
 ############################################
+def _map_parse_tfrecord(ndims):
+    def parse_tfrecord(proto):
+        features = {
+            'filename': tf.FixedLenFeature([], dtype=tf.string),
+            'label': tf.FixedLenFeature([], dtype=tf.int64),
+            'data': tf.FixedLenFeature([], dtype=tf.string)
+        }
+        parsed_features = tf.parse_single_example(proto, features)
 
-def _cached_features_dataset(class_nbr, cnn_output_dir, type="train", keep_label=False):
+        data = tf.decode_raw(parsed_features["data"], tf.float32)
+        data = tf.reshape(data, [ndims])
+        label = parsed_features["label"]
+
+        return data, label
+
+    return parse_tfrecord
+
+def _cached_features_dataset(class_nbr, cnn_output_dir, ndims, type="train", keep_label=False):
     """Return ready Dataset to turn into iterator"""
 
     # Get filenames path
-    csv_path = os.path.join(FLAGS.data_dir, str(class_nbr), "{}_files.csv".format(type))
-    dataset = get_csv_dataset(csv_path, class_nbr)
-
-    # Get exact filename
-    dataset = dataset.map(lambda path, label: tf.py_func(
-        lambda p, l: (os.path.basename(p), l),
-        [path, label],
-        [tf.string, tf.int32]
-    ))
-
-    # Open encoded image
-    dataset = dataset.map(lambda fn, label: tf.py_func(
-        lambda cnn, cl, t, fn, l: (np.load("{}/{}/{}/{}.npy".format(
-            cnn.decode('utf-8'),
-            cl,
-            t.decode('utf-8'),
-            fn.decode('utf-8')
-        )), l),
-        [cnn_output_dir, class_nbr, type, fn, label],
-        [tf.float32, tf.int32]
-    ))
-
-    # Read shape of read .npy files
-    first_file = glob.glob(os.path.join(cnn_output_dir, str(class_nbr), type, "*.npy"))[0]
-    shape = np.load(first_file).shape
-    dataset = dataset.map(lambda img, label: (tf.reshape(img, shape), label))
+    path = os.path.join(cnn_output_dir, str(class_nbr), type + '.tfrecord')
+    dataset = tf.data.TFRecordDataset([path])
+    dataset = dataset.map(_map_parse_tfrecord(ndims))
 
     if not keep_label:
-        dataset = dataset.map(lambda img, label: img)
+        dataset = dataset.map(lambda data, label: data)
 
-    tf.logging.debug(' Created a {} dataset from csv file {}'.format(type, csv_path))
+    tf.logging.debug(' Created a {} dataset from tfrecord file {}'.format(type, path))
     tf.logging.debug('     Output shapes : %s' % str(dataset.output_shapes))
     tf.logging.debug('     Output types : %s\n' % str(dataset.output_types))
 
     return dataset
 
 
-def train_cached_features_dataset(class_nbr, cnn_output_dir):
+def train_cached_features_dataset(class_nbr, cnn_output_dir, ndims):
     """Return Dataset on train dataset: get_next() -> ([image * batch_size])"""
     return _cached_features_dataset(
         class_nbr,
         cnn_output_dir,
+        ndims,
         type="train",
         keep_label=False
     )
 
 
-def test_cached_features_dataset(class_nbr, cnn_output_dir):
+def test_cached_features_dataset(class_nbr, cnn_output_dir, ndims):
     """Return Dataset on test dataset: get_next() -> ([image * batch_size], [label * batch_size])"""
     return _cached_features_dataset(
         class_nbr,
         cnn_output_dir,
+        ndims,
         type="test",
         keep_label=True,
     )
