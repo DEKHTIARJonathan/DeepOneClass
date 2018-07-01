@@ -169,11 +169,42 @@ def _map_parse_tfrecord(ndims):
 
     return parse_tfrecord
 
+def _read_data_stats(record_path, ndims):
+    queue = tf.train.string_input_producer([record_path], num_epochs=1)
+    reader = tf.TFRecordReader()
+    _, serialized_example = reader.read(queue)
+    features = tf.parse_single_example(serialized_example, features={
+        'mean': tf.FixedLenFeature([], tf.string),
+        'std': tf.FixedLenFeature([], tf.string),
+        'min': tf.FixedLenFeature([], tf.string),
+        'max': tf.FixedLenFeature([], tf.string)
+    })
+
+    mean = tf.decode_raw(features['mean'], tf.float32)
+    std = tf.decode_raw(features['std'], tf.float32)
+    min = tf.decode_raw(features['min'], tf.float32)
+    max = tf.decode_raw(features['max'], tf.float32)
+
+    mean = tf.reshape(mean, [ndims])
+    std = tf.reshape(std, [ndims])
+    min = tf.reshape(min, [ndims])
+    max = tf.reshape(max, [ndims])
+
+    return mean, std, min, max
+
+
+def _standardize(vector, mean, std):
+    v = (vector - mean) / std
+    return tf.where(tf.is_nan(v), tf.zeros_like(v), v)
+
 def _cached_features_dataset(class_nbr, cnn_output_dir, ndims, type="train", keep_label=False):
     """Return ready Dataset to turn into iterator"""
 
     # Get filenames path
     path = os.path.join(cnn_output_dir, str(class_nbr), type + '.tfrecord')
+    stats_path = os.path.join(cnn_output_dir, str(class_nbr), 'train_stats.tfrecord')
+    # mean, std, min, max = _read_data_stats(stats_path, ndims)
+
     dataset = tf.data.TFRecordDataset([path])
     dataset = dataset.map(_map_parse_tfrecord(ndims))
 

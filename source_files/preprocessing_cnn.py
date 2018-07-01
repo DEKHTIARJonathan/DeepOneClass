@@ -11,7 +11,7 @@ from data_utils import train_img_dataset, test_img_dataset, get_csv_dataset
 # sess.run(network.outputs, feed_dict={input_plh: images})
 
 
-def run_images_in_cnn(iterator_op, input_plh, network_outputs, output_path, hooks=None):
+def run_images_in_cnn(iterator_op, input_plh, network_outputs, output_path, stats_path=None, hooks=None):
     """
     Passes all data from a batched dataset into a network and saves predictions in output_dir
 
@@ -33,6 +33,10 @@ def run_images_in_cnn(iterator_op, input_plh, network_outputs, output_path, hook
                 hook(sess)
 
         i = 0
+        sum_flat = 0
+        sum_sqrt = 0
+        max_v = None
+        min_v = None
         try:
             while True:
                 # Consume input iterator (returns a batch)
@@ -46,6 +50,12 @@ def run_images_in_cnn(iterator_op, input_plh, network_outputs, output_path, hook
                 i += len(filenames)
 
                 if output_path:
+                    sum_flat += predictions.sum(axis=0)
+                    sum_sqrt += (predictions**2).sum(axis=0)
+                    mmax = predictions.max(axis=0)
+                    max_v = mmax if max_v is None else np.max([mmax, max_v], axis=0)
+                    mmin = predictions.min(axis=0)
+                    min_v = mmin if min_v is None else np.min([mmin, min_v], axis=0)
                     for filename, prediction, label in zip(filenames, predictions, labels):
                         example = tf.train.Example(
                             features=tf.train.Features(
@@ -63,6 +73,28 @@ def run_images_in_cnn(iterator_op, input_plh, network_outputs, output_path, hook
 
         except tf.errors.OutOfRangeError:
             tf.logging.info("Finished iterating over the dataset (%d elements)" % i)
+
+        if stats_path:
+            with tf.python_io.TFRecordWriter(stats_path) as stats_writer:
+                mean = sum_flat / i
+                var = sum_sqrt / i - mean**2
+                std = np.sqrt(var)
+                example = tf.train.Example(
+                    features=tf.train.Features(
+                        feature={
+                            'mean': tf.train.Feature(
+                                bytes_list=tf.train.BytesList(value=[tf.compat.as_bytes(mean.tostring())])),
+                            'std': tf.train.Feature(
+                                bytes_list=tf.train.BytesList(value=[tf.compat.as_bytes(std.tostring())])),
+                            'min': tf.train.Feature(
+                                bytes_list=tf.train.BytesList(value=[tf.compat.as_bytes(min_v.tostring())])),
+                            'max': tf.train.Feature(
+                                bytes_list=tf.train.BytesList(value=[tf.compat.as_bytes(max_v.tostring())])),
+                            'ndims': tf.train.Feature(int64_list=tf.train.Int64List(value=[mean.shape[0]]))
+                        }))
+
+                stats_writer.write(example.SerializeToString())
+
 
     return i
 
@@ -82,7 +114,7 @@ def main(argv=None):
     hook_load_pretrained = lambda sess: vgg_model.load_pretrained(sess)
 
     # Train Dataset
-    train_csv_path = os.path.join(FLAGS.data_dir, str(FLAGS.class_nbr), "{}_files.csv".format("train"))
+    train_csv_path = os.path.join(FLAGS.data_dir, str(FLAGS.class_nbr), "train_files.csv")
     input_fn_images = train_img_dataset(FLAGS.class_nbr, FLAGS.target_width)
     input_fn_filenames_labels = get_csv_dataset(train_csv_path, FLAGS.class_nbr)
     input_fn = tf.data.Dataset.zip((input_fn_filenames_labels, input_fn_images)).map(lambda fl, i: (fl[0], fl[1], i)).batch(FLAGS.batch_size)
@@ -90,6 +122,8 @@ def main(argv=None):
 
     # Target directory
     vgg16_train_output = os.path.join(FLAGS.cnn_output_dir, str(FLAGS.class_nbr), 'train.tfrecord')
+    vgg16_stats_train_output = os.path.join(FLAGS.cnn_output_dir, str(FLAGS.class_nbr), 'train_stats.tfrecord')
+
     if not os.path.exists(os.path.dirname(vgg16_train_output)):
         os.makedirs(os.path.dirname(vgg16_train_output))
 
@@ -98,11 +132,12 @@ def main(argv=None):
         input_plh,
         network_outputs,
         vgg16_train_output,
+        vgg16_stats_train_output,
         hooks=[hook_load_pretrained]
     )
 
     # Test Dataset
-    test_csv_path = os.path.join(FLAGS.data_dir, str(FLAGS.class_nbr), "{}_files.csv".format("test"))
+    test_csv_path = os.path.join(FLAGS.data_dir, str(FLAGS.class_nbr), "test_files.csv")
     input_fn_images = test_img_dataset(FLAGS.class_nbr, FLAGS.target_width).map(lambda img, label: img)
     input_fn_filenames_labels = get_csv_dataset(test_csv_path, FLAGS.class_nbr)
     input_fn = tf.data.Dataset.zip((input_fn_filenames_labels, input_fn_images)).map(lambda fl, i: (fl[0], fl[1], i)).batch(FLAGS.batch_size)
