@@ -5,7 +5,8 @@ import tensorflow as tf
 from data_utils import train_cached_features_dataset, train_img_dataset, run_dataset_through_network
 from data_utils import _LoadPreTrainedWeights
 from vgg_network import VGG_Network
-from estimator_svdd import SVDDClassifier as SVDDClassifier
+from estimator_svdd import SVDDClassifier
+from estimator_ocsvm import OCSVMClassifier
 from flags import FLAGS
 
 def main(argv=None):
@@ -31,14 +32,22 @@ def main(argv=None):
         train_hooks.append(_LoadPreTrainedWeights(vgg_net))
 
     tf.logging.info('Creating the classifier\n\n')
-    classifier = SVDDClassifier(
-        c=FLAGS.c,
-        kernel=FLAGS.kernel,
-        learning_rate=FLAGS.learning_rate,
-        model_dir=FLAGS.model_dir,
-        rffm_dims=FLAGS.rffm_dims,
-        rffm_stddev=FLAGS.rffm_stddev
-    )
+    if FLAGS.type == "ocsvm":
+        classifier = OCSVMClassifier(
+            c=FLAGS.c,
+            kernel=FLAGS.kernel,
+            learning_rate=FLAGS.learning_rate,
+            model_dir=FLAGS.model_dir
+        )
+    else:
+        classifier = SVDDClassifier(
+            c=FLAGS.c,
+            kernel=FLAGS.kernel,
+            learning_rate=FLAGS.learning_rate,
+            model_dir=FLAGS.model_dir,
+            rffm_dims=FLAGS.rffm_dims,
+            rffm_stddev=FLAGS.rffm_stddev
+        )
 
     tf.logging.info('Training the classifier\n\n')
     classifier.train(

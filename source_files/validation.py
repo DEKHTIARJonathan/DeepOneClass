@@ -9,7 +9,8 @@ from matplotlib import pyplot as plt
 
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
 
-from estimator_svdd import SVDDClassifier as SVDDClassifier
+from estimator_svdd import SVDDClassifier
+from estimator_ocsvm import OCSVMClassifier
 from vgg_network import VGG_Network
 from data_utils import test_cached_features_dataset, test_img_dataset, run_dataset_through_network
 from data_utils import _LoadPreTrainedWeights
@@ -87,13 +88,20 @@ def main(argv=None):
         train_hooks.append(_LoadPreTrainedWeights(vgg_net))
 
     tf.logging.info('Creating the classifier\n\n')
-    classifier = SVDDClassifier(
-        c=FLAGS.c,
-        kernel=FLAGS.kernel,
-        model_dir=FLAGS.model_dir,
-        rffm_dims=FLAGS.rffm_dims,
-        rffm_stddev=FLAGS.rffm_stddev
-    )
+    if FLAGS.type == "ocsvm":
+        classifier = OCSVMClassifier(
+            c=FLAGS.c,
+            kernel=FLAGS.kernel,
+            model_dir=FLAGS.model_dir
+        )
+    else:
+        classifier = SVDDClassifier(
+            c=FLAGS.c,
+            kernel=FLAGS.kernel,
+            rffm_dims=FLAGS.rffm_dims,
+            rffm_stddev=FLAGS.rffm_stddev,
+            model_dir=FLAGS.model_dir
+        )
 
     tf.logging.info('Predicting with the classifier\n\n')
     predictions = classifier.predict(
