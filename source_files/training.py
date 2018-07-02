@@ -16,7 +16,7 @@ def main(argv=None):
         def input_fn_train():
             with tf.name_scope('input_dataset'):
                 dataset = train_cached_features_dataset(FLAGS.class_nbr, FLAGS.cnn_output_dir, FLAGS.cnn_out_dims)
-                dataset = dataset.repeat(FLAGS.epochs).batch(FLAGS.batch_size)
+                dataset = dataset.shuffle(1000).repeat(FLAGS.epochs).batch(FLAGS.batch_size)
                 return dataset
 
     else:
@@ -25,7 +25,7 @@ def main(argv=None):
         def input_fn_train():
             with tf.name_scope('input_dataset'):
                 dataset = train_img_dataset(FLAGS.class_nbr, FLAGS.target_width)
-                dataset = dataset.repeat(FLAGS.epochs).batch(FLAGS.batch_size)
+                dataset = dataset.shuffle(1000).repeat(FLAGS.epochs).batch(FLAGS.batch_size)
                 dataset = run_dataset_through_network(dataset, vgg_net)
                 return dataset
 
