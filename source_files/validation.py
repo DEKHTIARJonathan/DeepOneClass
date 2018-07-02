@@ -92,6 +92,8 @@ def main(argv=None):
         classifier = OCSVMClassifier(
             c=FLAGS.c,
             kernel=FLAGS.kernel,
+            rffm_dims=FLAGS.rffm_dims,
+            rffm_stddev=FLAGS.rffm_stddev,
             model_dir=FLAGS.model_dir
         )
     else:

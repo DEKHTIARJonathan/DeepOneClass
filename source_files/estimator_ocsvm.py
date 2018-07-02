@@ -23,6 +23,15 @@ def naive_ocsvm_model_fn(features, labels, mode, params):
         if params["kernel"] == "linear":
             out_size = input_size
             mapped_inputs = features
+        elif params["kernel"] in ["rffm", "rbf"]:
+            out_size = params["rffm_dims"] if "rffm_dims" in params else input_size
+            kernel_mapper = tf.contrib.kernel_methods.RandomFourierFeatureMapper(
+                input_dim=input_size,
+                output_dim=out_size,
+                stddev=params["rffm_stddev"],
+                name="rffm"
+            )
+            mapped_inputs = kernel_mapper.map(features)
         else:
             raise ValueError("Map function {} not implemented.".format(params["kernel"]))
 
@@ -80,6 +89,8 @@ class OCSVMClassifier(tf.estimator.Estimator):
     def __init__(self,
                  c=2.0,
                  kernel="linear",
+                 rffm_dims=None,
+                 rffm_stddev=None,
                  learning_rate=0.1,
                  input_size=None,
                  *args, **kwargs):
@@ -90,7 +101,9 @@ class OCSVMClassifier(tf.estimator.Estimator):
         :param input_size: Number of dimensions of the input vectors
         """
 
-        assert kernel in ["linear"]
+        assert kernel in ["linear", "rffm", "rbf"]
+        assert kernel not in ["rffm", "rbf"] or (rffm_dims is not None and rffm_stddev is not None)
+        assert kernel not in ["rffm", "rbf"] or (rffm_dims > 0 and rffm_stddev > 0)
         assert input_size is None or input_size > 0
         assert c > 0
 
@@ -99,6 +112,8 @@ class OCSVMClassifier(tf.estimator.Estimator):
             params={
                "c": c,
                "kernel": kernel,
+               "rffm_dims": rffm_dims,
+               "rffm_stddev": rffm_stddev,
                "learning_rate": learning_rate,
                "input_size": input_size
             },
