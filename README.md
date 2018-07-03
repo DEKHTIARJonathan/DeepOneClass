@@ -4,6 +4,32 @@ This project implements the code for a Deep Learning model performing One-Class
 Classification for an anomaly detection objective. This implementation use the libraries 
 **tensorflow** and **tensorlayer**.
 
+## Training and evaluation
+
+Run the training script with desired flags:
+```shell
+python source_files/training.py \
+--type ocsvm \
+--epochs 1000 \
+--learning_rate 0.005 \
+--batch_size 128 \
+--c 0.1 \
+--model_dir ../tmp/estimator \
+--class_nbr 1
+```
+
+Run validation script:
+```shell
+python validation.py \
+--type ocsvm \
+--batch_size 128 \
+--c 0.1 \
+--model_dir ../tmp/estimator \
+--class_nbr 1 \
+```
+
+See `source_files/flags.py` for more flags options.
+
 ## Copyright and Licensing
 
 The project is released under the GNU Affero GPL v3.0 License, which gives you 

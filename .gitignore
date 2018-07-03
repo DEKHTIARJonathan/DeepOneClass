@@ -1,3 +1,10 @@
+# Data folder
+/data
+!/data/.gitkeep
+
+# tmp folder with checkpoints
+tmp
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -13,6 +20,7 @@ build/
 develop-eggs/
 dist/
 downloads/
+eggs/
 eggs/
 .eggs/
 lib/
@@ -105,3 +113,8 @@ ENV/
 checkpoints/
 logs/
 samples/
+
+# Weights and Checkpoints
+source_files/weights/*.npz
+source_files/weights/*.ckpt
+weights/*

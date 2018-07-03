@@ -6,8 +6,6 @@ import tensorlayer as tl
 
 sys.path.append("tests")
 
-from tests.test_model import OneClassCNNTest
-
 runner = unittest.TextTestRunner(verbosity=2)
 
 if __name__ == '__main__':
@@ -15,7 +13,7 @@ if __name__ == '__main__':
     #tf.logging.set_verbosity(tf.logging.INFO)
     tf.logging.set_verbosity(tf.logging.DEBUG)
 
-    for test_module in [OneClassCNNTest]:
+    for test_module in []:
 
         tf.logging.info("Running tests for: %s ..." % test_module)
 
